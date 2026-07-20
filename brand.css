@@ -1,0 +1,41 @@
+/* ============================================================
+   TradeLine — shared brand system
+   Single source of truth for type + color across the whole product.
+   Linked by index.html (landing) and app.html (demo).
+   Change the look here once; both pages update.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  /* --- brand color --- */
+  --tl-navy:#0f1e2e;
+  --tl-navy-2:#16293e;
+  --tl-steel:#2f6fa8;
+  --tl-steel-l:#5b96c9;
+  --tl-steel-glow:#7db4e0;
+  --tl-paper:#f2f0ea;
+  --tl-ink:#1c2530;
+  --tl-muted:#5d6b7a;
+  --tl-ok:#3fae7c;
+  --tl-amber:#e0a63a;
+
+  /* --- brand type --- */
+  --tl-display:'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --tl-body:'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tl-mono:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Shared primary button — chunky, stamped, industrial.
+   Use class "tl-btn" anywhere (landing, future pages, emails). */
+.tl-btn{
+  display:inline-flex; align-items:center; gap:10px;
+  background:var(--tl-steel); color:#fff; text-decoration:none;
+  font-family:var(--tl-display); font-weight:700; font-size:19px;
+  letter-spacing:.06em; text-transform:uppercase;
+  padding:15px 28px; border:none; cursor:pointer; border-radius:3px;
+  box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  transition:transform .12s, box-shadow .12s, background .12s;
+}
+.tl-btn:hover{ transform:translate(-2px,-2px); box-shadow:7px 7px 0 rgba(0,0,0,.35); background:var(--tl-steel-l); }
+.tl-btn:active{ transform:translate(1px,1px); box-shadow:2px 2px 0 rgba(0,0,0,.35); }
+@media (prefers-reduced-motion:reduce){ .tl-btn{ transition:none; } }
