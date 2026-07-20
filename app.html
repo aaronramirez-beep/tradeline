@@ -224,7 +224,7 @@
   <aside class="side">
     <div class="brand"><span class="dot" id="bizDot">T</span><div><span id="bizName">TradeLine</span> <span class="pill p-purple" style="font-size:9px;padding:2px 7px;vertical-align:2px">PRO</span><small id="bizTrade">Field Service CRM</small></div></div>
     <nav class="nav" id="nav"></nav>
-    <div class="foot">TradeLine demo · data saves in this browser<br><a style="color:#9fb8d1;text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:#9fb8d1;text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
+    <div class="foot"><a href="index.html" style="color:#7db4e0;text-decoration:none;font-weight:600">← TradeLine home</a><br><span style="opacity:.8">Demo · data saves in this browser</span><br><a style="color:#9fb8d1;text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:#9fb8d1;text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
   </aside>
   <div class="main">
     <div class="top">
@@ -1145,7 +1145,7 @@ function showLauncher(){
   const list=getWorkspaces();
   const l=document.getElementById('launcher');
   l.innerHTML=`<div class="launch">
-    <div class="lhead"><h1>TradeLine</h1><p>From first call to final invoice. Run multiple businesses side by side — each keeps its own clients, jobs, money, plan and integrations, saved in this browser.</p></div>
+    <div class="lhead"><h1>TradeLine</h1><p>From first call to final invoice. Run multiple businesses side by side — each keeps its own clients, jobs, money, plan and integrations, saved in this browser.</p><p style="margin-top:10px"><a href="index.html" style="color:#7db4e0;text-decoration:none;font-weight:600">← Back to TradeLine home</a></p></div>
     ${list.length?`<div class="bizgrid">${list.map(w=>`
       <div class="bizcard">
         <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${esc((w.name.trim()[0]||'A').toUpperCase())}</span><div><h3>${esc(w.name)}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
