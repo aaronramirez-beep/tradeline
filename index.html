@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TradeLine — From first call to final invoice</title>
+<meta name="description" content="TradeLine is a field-service CRM for the trades — requests, quotes, jobs, invoicing, payments and job costing in one place. Try the live demo.">
+<meta property="og:title" content="TradeLine — Field Service CRM">
+<meta property="og:description" content="From first call to final invoice. Try the live demo — no signup needed.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232f6fa8'/><text x='50' y='72' font-size='62' font-weight='bold' font-family='Arial' fill='white' text-anchor='middle'>T</text></svg>">
 <style>
   :root{
     --green:#2f6fa8; --green-d:#25588a; --green-l:#e8f1f9;
@@ -180,6 +184,39 @@
   .seedopt label.sel{border-color:var(--green);background:var(--green-l)}
   .seedopt label b{display:block;font-size:13.5px;margin-bottom:3px}
   .seedopt input{display:none}
+
+  /* ---- mobile ---- */
+  .menubtn{display:none;background:none;border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:17px;cursor:pointer;color:var(--ink);flex-shrink:0}
+  .scrim{position:fixed;inset:0;background:rgba(13,25,38,.45);z-index:240;display:none}
+  @media(max-width:900px){
+    .side{position:fixed;left:0;top:0;bottom:0;z-index:250;transform:translateX(-100%);transition:transform .18s ease;height:100%}
+    .side.open{transform:none;box-shadow:0 0 60px rgba(0,0,0,.45)}
+    .menubtn{display:inline-flex}
+    .top{padding:10px 14px}
+    .content{padding:16px 14px}
+    .cards4,.cards3{grid-template-columns:1fr 1fr}
+    .cards2,.kanban,.ints,.plans{grid-template-columns:1fr}
+    .row2{grid-template-columns:1fr}
+    .kv{gap:14px 20px}
+    .li-row{grid-template-columns:1.5fr .55fr .8fr auto;gap:6px}
+    .flow .arw{width:14px;margin:0 3px}
+    .bizgrid{grid-template-columns:1fr}
+    .seedopt{flex-direction:column}
+    th,td{padding:9px 10px}
+  }
+  @media(max-width:480px){
+    .cards4,.cards3{grid-template-columns:1fr}
+    .top h1{font-size:16px}
+  }
+
+  /* ---- print (quotes & invoices → PDF) ---- */
+  @media print{
+    .side,.top,.menubtn,.scrim,.back,.hintbar,.toast,button,.overlay{display:none!important}
+    body{background:#fff}
+    .content{padding:0;max-width:none}
+    .card,.tablewrap{border-color:#ccc;break-inside:avoid}
+    .note,.warn{border-color:#ccc;background:#fff}
+  }
 </style>
 </head>
 <body>
@@ -191,13 +228,17 @@
   </aside>
   <div class="main">
     <div class="top">
-      <div><h1 id="pageTitle">Dashboard</h1><div class="sub" id="pageSub"></div></div>
+      <div style="display:flex;align-items:center;gap:11px;min-width:0">
+        <button class="menubtn" onclick="toggleMenu()" aria-label="Menu">☰</button>
+        <div style="min-width:0"><h1 id="pageTitle">Dashboard</h1><div class="sub" id="pageSub"></div></div>
+      </div>
       <div class="right"><span id="planBadge"></span><span id="topAction"></span></div>
     </div>
     <div class="content" id="view"></div>
   </div>
 </div>
 
+<div class="scrim" id="scrim" onclick="toggleMenu(false)"></div>
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 <div id="launcher"></div>
@@ -206,10 +247,14 @@
 /* ============================ CORE HELPERS ============================ */
 let UID = 1000;
 const uid = p => (p||'') + (++UID);
-const money = n => '$' + (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const today = '2026-07-18';
-const dfmt = d => { if(!d) return '—'; const [y,m,day]=d.split('-'); return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${+day}, ${y}`; };
-const esc = s => String(s).replace(/"/g,'&quot;');
+const money = n => ((n||0)<0?'−':'') + '$' + Math.abs(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const iso = d => d.toISOString().slice(0,10);
+const today = iso(new Date());
+const daysFromNow = n => iso(new Date(Date.now()+n*864e5));
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dfmt = d => { if(!d) return '—'; const [y,m,day]=d.split('-'); return `${MONTHS[+m-1]} ${+day}, ${y}`; };
+const shortDate = d => { const [y,m,day]=d.split('-'); return `${MONTHS[+m-1]} ${+day}`; };
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 /* ============================ PLANS & FEATURES ============================ */
 const PLANS = [
@@ -285,41 +330,41 @@ function seedState(){ const s = baseState(); Object.assign(s, {
     {id:'c4', name:'Coleman Custom Home', contact:'Rick Coleman', type:'Homeowner', phone:'(970) 555-0119', email:'rick.coleman@example.com', address:'12 Foothill Rd, Longmont, CO'},
   ],
   requests: [
-    {id:'r1', name:'Elena Marsh', phone:'(303) 555-0164', service:'Exterior repaint — 2-story home', pref:'2026-07-27', source:'Online booking', status:'new'},
-    {id:'r2', name:'Foothills Dental (office)', phone:'(720) 555-0190', service:'Reception & hallway repaint, weekend work', pref:'2026-08-02', source:'Website form', status:'new'},
+    {id:'r1', name:'Elena Marsh', phone:'(303) 555-0164', service:'Exterior repaint — 2-story home', pref:daysFromNow(8), source:'Online booking', status:'new'},
+    {id:'r2', name:'Foothills Dental (office)', phone:'(720) 555-0190', service:'Reception & hallway repaint, weekend work', pref:daysFromNow(14), source:'Website form', status:'new'},
   ],
   quotes: [
-    {id:'q1', clientId:'c2', title:'Level 5 finish — 14 units, Building C', status:'approved', date:'2026-07-06',
+    {id:'q1', clientId:'c2', title:'Level 5 finish — 14 units, Building C', status:'approved', date:daysFromNow(-12),
       items:[{d:'Level 5 drywall skim coat (sq ft)',q:9800,p:1.35},{d:'Prime & seal — new drywall',q:9800,p:0.42},{d:'Corner bead install & finish (lf)',q:640,p:2.10}]},
-    {id:'q2', clientId:'c1', title:'Interior repaint — main level + stairwell', status:'sent', date:'2026-07-14',
+    {id:'q2', clientId:'c1', title:'Interior repaint — main level + stairwell', status:'sent', date:daysFromNow(-4),
       items:[{d:'Wall prep, patch & sand',q:1,p:850},{d:'Interior paint — walls, 2 coats (sq ft)',q:2400,p:1.15},{d:'Trim & door enamel finish (lf)',q:380,p:3.25}]},
-    {id:'q3', clientId:'c4', title:'Cabinet refinishing — kitchen + island', status:'draft', date:'2026-07-16',
+    {id:'q3', clientId:'c4', title:'Cabinet refinishing — kitchen + island', status:'draft', date:daysFromNow(-2),
       items:[{d:'Degloss, sand & prep (per door/drawer)',q:34,p:28},{d:'Spray finish — 2 coats lacquer',q:34,p:62},{d:'Onsite spray booth setup',q:1,p:450}]},
   ],
   jobs: [
-    {id:'j1', clientId:'c2', quoteId:'q1', title:'Level 5 finish — 14 units, Building C', date:'2026-07-20', crew:'Crew A — Luis, Marco', status:'scheduled',
+    {id:'j1', clientId:'c2', quoteId:'q1', title:'Level 5 finish — 14 units, Building C', date:daysFromNow(2), crew:'Crew A — Luis, Marco', status:'scheduled',
       checklist:[{t:'Confirm units are drywalled & ready',done:true},{t:'Stage skim coat materials',done:false},{t:'Mask & protect finished floors',done:false},{t:'Skim coat + sand',done:false},{t:'Prime & final walk',done:false}]},
-    {id:'j2', clientId:'c3', quoteId:null, title:'Common-hallway patch & repaint — floors 2-3', date:'2026-07-15', crew:'Crew B — Tanya, Deshawn', status:'complete',
+    {id:'j2', clientId:'c3', quoteId:null, title:'Common-hallway patch & repaint — floors 2-3', date:daysFromNow(-3), crew:'Crew B — Tanya, Deshawn', status:'complete',
       checklist:[{t:'Patch drywall dings',done:true},{t:'Sand & spot prime',done:true},{t:'Repaint hallways, 2 coats',done:true},{t:'Touch-up & final walk',done:true}]},
   ],
   invoices: [
-    {id:'i1', clientId:'c3', jobId:'j2', title:'Common-hallway patch & repaint — floors 2-3', status:'sent', date:'2026-07-16', due:'2026-07-30',
+    {id:'i1', clientId:'c3', jobId:'j2', title:'Common-hallway patch & repaint — floors 2-3', status:'sent', date:daysFromNow(-2), due:daysFromNow(12),
       items:[{d:'Drywall patch & repair',q:1,p:1200},{d:'Repaint common hallways (sq ft)',q:2100,p:1.05},{d:'Materials & supplies',q:1,p:340}]},
-    {id:'i2', clientId:'c2', jobId:null, title:'Deposit — Building A stairwell finish', status:'paid', date:'2026-06-28', due:'2026-07-05',
+    {id:'i2', clientId:'c2', jobId:null, title:'Deposit — Building A stairwell finish', status:'paid', date:daysFromNow(-20), due:daysFromNow(-13),
       items:[{d:'Project deposit (30%)',q:1,p:4200}]},
   ],
   payments: [
-    {id:'p1', invoiceId:'i2', amount:4200, method:'ACH bank transfer', date:'2026-07-02'},
+    {id:'p1', invoiceId:'i2', amount:4200, method:'ACH bank transfer', date:daysFromNow(-16)},
   ],
   timesheets: [
-    {id:'t1', jobId:'j2', worker:'Tanya R.', hours:14, rate:45, date:'2026-07-15'},
-    {id:'t2', jobId:'j2', worker:'Deshawn K.', hours:12, rate:42, date:'2026-07-15'},
-    {id:'t3', jobId:'j1', worker:'Luis G.', hours:6, rate:48, date:'2026-07-17'},
+    {id:'t1', jobId:'j2', worker:'Tanya R.', hours:14, rate:45, date:daysFromNow(-3)},
+    {id:'t2', jobId:'j2', worker:'Deshawn K.', hours:12, rate:42, date:daysFromNow(-3)},
+    {id:'t3', jobId:'j1', worker:'Luis G.', hours:6, rate:48, date:daysFromNow(-1)},
   ],
   expenses: [
-    {id:'e1', jobId:'j2', desc:'Paint & patch compound — SW ProMar', amount:412.80, date:'2026-07-14'},
-    {id:'e2', jobId:'j2', desc:'Masking film, tape, sleeves', amount:86.40, date:'2026-07-14'},
-    {id:'e3', jobId:'j1', desc:'Level 5 skim compound (pallet)', amount:1240.00, date:'2026-07-16'},
+    {id:'e1', jobId:'j2', desc:'Paint & patch compound — SW ProMar', amount:412.80, date:daysFromNow(-4)},
+    {id:'e2', jobId:'j2', desc:'Masking film, tape, sleeves', amount:86.40, date:daysFromNow(-4)},
+    {id:'e3', jobId:'j1', desc:'Level 5 skim compound (pallet)', amount:1240.00, date:daysFromNow(-2)},
   ],
   automations: [
     {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:true},
@@ -329,12 +374,12 @@ function seedState(){ const s = baseState(); Object.assign(s, {
     {key:'a5', name:'Rebook nudge', desc:'Offer repeat clients a booking link 6 months after their last job', on:false},
   ],
   autoLog: [
-    {when:'Jul 17', msg:'Quote follow-up sent to Dana Whitmore (Q2, day 3 unanswered)'},
-    {when:'Jul 15', msg:'Visit reminder texted to Harborview Apartments'},
+    {when:shortDate(daysFromNow(-1)), msg:'Quote follow-up sent to Dana Whitmore (Q2, day 3 unanswered)'},
+    {when:shortDate(daysFromNow(-3)), msg:'Visit reminder texted to Harborview Apartments'},
   ],
   aiOn:true,
   aiCalls: [
-    {when:'Jul 16, 9:12 PM', caller:'(303) 555-0164', outcome:'Booked request', lines:[
+    {when:shortDate(daysFromNow(-2))+', 9:12 PM', caller:'(303) 555-0164', outcome:'Booked request', lines:[
       ['caller','Hi, do you do exterior repaints? Our HOA deadline is end of August.'],
       ['ai','We do! We handle full exterior repaints. Can I grab your name and a good date for a free estimate?'],
       ['ai','Booked: estimate request for Elena Marsh, week of Jul 27. Aaron will confirm by text.']]},
@@ -361,7 +406,7 @@ const statusPill = s => ({
 }[s] || pill(s,'p-slate'));
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
-function autolog(msg){state.autoLog.unshift({when:'Jul 18', msg});}
+function autolog(msg){state.autoLog.unshift({when:shortDate(today), msg});}
 
 /* ============================ MODAL ============================ */
 function openModal(html,wide){document.getElementById('modal').className='modal'+(wide?' wide':'');document.getElementById('modal').innerHTML=html;document.getElementById('overlay').classList.add('show');}
@@ -400,7 +445,14 @@ const topActions={
   timesheets:`<button class="btn" onclick="newTime()">＋ Log time</button>`,
   expenses:`<button class="btn" onclick="newExpense()">＋ Add expense</button>`,
 };
+function toggleMenu(force){
+  const side=document.querySelector('.side');
+  const open = force!==undefined ? force : !side.classList.contains('open');
+  side.classList.toggle('open', open);
+  document.getElementById('scrim').style.display = open ? 'block' : 'none';
+}
 function go(view,arg){current=view;
+  toggleMenu(false);
   const [t,s]=titles[view]||[view,''];
   document.getElementById('pageTitle').textContent=t; document.getElementById('pageSub').textContent=s;
   renderNav();
@@ -462,7 +514,7 @@ views.dashboard=function(){
       <div class="sec-title">Upcoming work</div>
       ${upcoming.length? tableJobs(upcoming) : `<div class="card empty">No jobs scheduled.</div>`}
       <div class="sec-title">Unpaid invoices</div>
-      <div class="card">${state.invoices.filter(i=>invBalance(i)>0).map(i=>`<div class="chk" style="justify-content:space-between"><div><div class="strong">${client(i.clientId).name}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong">${money(invBalance(i))}</div></div>`).join('')||'<div class="tiny">All paid up 🎉</div>'}</div>
+      <div class="card">${state.invoices.filter(i=>invBalance(i)>0).map(i=>`<div class="chk" style="justify-content:space-between"><div><div class="strong">${esc(client(i.clientId).name)}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong">${money(invBalance(i))}</div></div>`).join('')||'<div class="tiny">All paid up 🎉</div>'}</div>
     </div>
     <div>
       <div class="sec-title">Get set up</div>
@@ -477,7 +529,7 @@ views.dashboard=function(){
 views.requests=function(){
   el().innerHTML=`<div class="hintbar">☎ Requests are the very top of the funnel — online booking, website forms${has('ai')?', and calls your <b>AI Receptionist</b> books':''}${state.integrations.thumbtack?', and Thumbtack leads':''}. Convert one into a quote to start the lead-to-cash flow.</div>
   ${state.requests.length?`<div class="tablewrap"><table><thead><tr><th>From</th><th>Requested work</th><th>Preferred date</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody>${
-    state.requests.map(r=>`<tr><td><div class="strong">${r.name}</div><div class="tiny">${r.phone}</div></td><td>${r.service}</td><td class="tiny">${dfmt(r.pref)}</td><td>${pill(r.source, r.source==='AI Receptionist'?'p-purple':'p-slate')}</td><td>${statusPill(r.status)}</td><td>${r.status==='new'?`<button class="btn sm" onclick="convertRequest('${r.id}')">Convert to quote →</button>`:''}</td></tr>`).join('')
+    state.requests.map(r=>`<tr><td><div class="strong">${esc(r.name)}</div><div class="tiny">${esc(r.phone)}</div></td><td>${esc(r.service)}</td><td class="tiny">${dfmt(r.pref)}</td><td>${pill(r.source, r.source==='AI Receptionist'?'p-purple':'p-slate')}</td><td>${statusPill(r.status)}</td><td>${r.status==='new'?`<button class="btn sm" onclick="convertRequest('${r.id}')">Convert to quote →</button>`:''}</td></tr>`).join('')
   }</tbody></table></div>`:'<div class="card empty">No requests. Try the AI Receptionist simulator to generate one.</div>'}`;
 };
 function newRequest(){
@@ -488,7 +540,7 @@ function newRequest(){
       <label class="fld"><span>Phone</span><input id="r_phone" placeholder="(303) 555-0100"></label>
     </div>
     <label class="fld"><span>Requested work</span><input id="r_service" placeholder="e.g. Deck stain & seal"></label>
-    <label class="fld"><span>Preferred date</span><input id="r_pref" type="date" value="2026-07-28"></label>
+    <label class="fld"><span>Preferred date</span><input id="r_pref" type="date" value="${daysFromNow(9)}"></label>
   </div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveRequest()">Save request</button></div>`);
 }
@@ -509,7 +561,7 @@ views.clients=function(){
     state.clients.map(c=>{
       const jc=state.jobs.filter(j=>j.clientId===c.id).length;
       const qc=state.quotes.filter(q=>q.clientId===c.id).length;
-      return `<tr class="click" onclick="clientDetail('${c.id}')"><td><div class="strong">${c.name}</div><div class="tiny">${c.address}</div></td><td>${pill(c.type,'p-slate')}</td><td>${c.contact}</td><td class="tiny">${c.phone}</td><td>${jc}</td><td>${qc}</td></tr>`;
+      return `<tr class="click" onclick="clientDetail('${c.id}')"><td><div class="strong">${esc(c.name)}</div><div class="tiny">${esc(c.address)}</div></td><td>${pill(c.type,'p-slate')}</td><td>${esc(c.contact)}</td><td class="tiny">${esc(c.phone)}</td><td>${jc}</td><td>${qc}</td></tr>`;
     }).join('')
   }</tbody></table></div>`;
 };
@@ -517,13 +569,13 @@ function clientDetail(id){const c=client(id);
   const qs=state.quotes.filter(q=>q.clientId===id), js=state.jobs.filter(j=>j.clientId===id), is=state.invoices.filter(i=>i.clientId===id);
   document.getElementById('pageTitle').textContent='Client';document.getElementById('pageSub').textContent=c.name;
   el().innerHTML=`<div class="back" onclick="go('clients')">← All clients</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${c.name}</h2><div class="tiny">${pill(c.type,'p-slate')} ${state.integrations.qbo?pill('Synced to QBO ✓','p-green'):''}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${esc(c.name)}</h2><div class="tiny">${pill(c.type,'p-slate')} ${state.integrations.qbo?pill('Synced to QBO ✓','p-green'):''}</div></div>
     <button class="btn sec sm" onclick="newQuote('${id}')">＋ New quote for this client</button></div>
   <div class="kv">
-    <div><div class="k">Contact</div><div class="v">${c.contact}</div></div>
-    <div><div class="k">Phone</div><div class="v">${c.phone}</div></div>
-    <div><div class="k">Email</div><div class="v">${c.email}</div></div>
-    <div><div class="k">Address</div><div class="v">${c.address}</div></div>
+    <div><div class="k">Contact</div><div class="v">${esc(c.contact)}</div></div>
+    <div><div class="k">Phone</div><div class="v">${esc(c.phone)}</div></div>
+    <div><div class="k">Email</div><div class="v">${esc(c.email)}</div></div>
+    <div><div class="k">Address</div><div class="v">${esc(c.address)}</div></div>
   </div>
   <div class="sec-title">Quotes</div>${qs.length?tableQuotes(qs):'<div class="card empty">No quotes yet.</div>'}
   <div class="sec-title">Jobs</div>${js.length?tableJobs(js):'<div class="card empty">No jobs yet.</div>'}
@@ -532,18 +584,18 @@ function clientDetail(id){const c=client(id);
 
 /* ---- QUOTES ---- */
 function tableQuotes(list){return `<div class="tablewrap"><table><thead><tr><th>Quote</th><th>Client</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${
-  list.map(q=>`<tr class="click" onclick="quoteDetail('${q.id}')"><td><div class="strong">${q.title}</div><div class="tiny">${q.id.toUpperCase()}</div></td><td>${client(q.clientId).name}</td><td class="tiny">${dfmt(q.date)}</td><td class="strong">${money(quoteTotal(q))}</td><td>${statusPill(q.status)}</td></tr>`).join('')
+  list.map(q=>`<tr class="click" onclick="quoteDetail('${q.id}')"><td><div class="strong">${esc(q.title)}</div><div class="tiny">${q.id.toUpperCase()}</div></td><td>${esc(client(q.clientId).name)}</td><td class="tiny">${dfmt(q.date)}</td><td class="strong">${money(quoteTotal(q))}</td><td>${statusPill(q.status)}</td></tr>`).join('')
 }</tbody></table></div>`;}
 views.quotes=function(){el().innerHTML=state.quotes.length?tableQuotes(state.quotes):'<div class="card empty">No quotes yet. Click “New quote”.</div>';};
 
 function quoteDetail(id){const q=state.quotes.find(x=>x.id===id);const c=client(q.clientId);
   const steps=['draft','sent','approved'];const si=steps.indexOf(q.status);
   el().innerHTML=`<div class="back" onclick="go('quotes')">← All quotes</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${q.title}</h2><div class="tiny">${q.id.toUpperCase()} · ${c.name} · ${dfmt(q.date)}</div></div><div>${statusPill(q.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${esc(q.title)}</h2><div class="tiny">${q.id.toUpperCase()} · ${esc(c.name)} · ${dfmt(q.date)}</div></div><div>${statusPill(q.status)}</div></div>
   <div class="flow">${steps.map((s,i)=>`<div class="step ${i<=si?'done':''}"><span class="n">${i<=si?'✓':i+1}</span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>${i<2?'<span class="arw"></span>':''}`).join('')}</div>
   <div class="card">
     <table><thead><tr><th>Line item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>
-    ${q.items.map(i=>`<tr><td>${i.d}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
+    ${q.items.map(i=>`<tr><td>${esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
     </tbody></table>
     <div style="max-width:280px;margin-left:auto;margin-top:14px"><div class="subtot big"><span>Total</span><span>${money(quoteTotal(q))}</span></div></div>
   </div>
@@ -551,6 +603,7 @@ function quoteDetail(id){const q=state.quotes.find(x=>x.id===id);const c=client(
     ${q.status==='draft'?`<button class="btn" onclick="setQuote('${id}','sent')">Send to client${state.integrations.gmail?' via Gmail':''}</button>`:''}
     ${q.status==='sent'?`<button class="btn" onclick="setQuote('${id}','approved')">✓ Mark approved</button><button class="btn sec" onclick="setQuote('${id}','draft')">Back to draft</button>`:''}
     ${q.status==='approved'?`<button class="btn" onclick="newJob(null,'${id}')">▦ Convert to job →</button>`:''}
+    <button class="btn sec" onclick="window.print()">🖨 Print / PDF</button>
     <button class="btn danger sm" onclick="delItem('quotes','${id}')">Delete</button>
   </div>
   ${q.status==='sent'&&state.automations.find(a=>a.key==='a1').on&&has('automations')?'<div class="note" style="margin-top:16px">⚙ Automation armed: client gets a follow-up if this sits unanswered 3 days.</div>':''}
@@ -568,9 +621,9 @@ views.pipeline=function(){
   const col=(title,items,render,total)=>`<div class="kcol"><h4>${title} <span>${items.length}${total!==undefined?' · '+money(total):''}</span></h4>${items.map(render).join('')||'<div class="tiny" style="padding:6px 2px">Empty</div>'}</div>`;
   el().innerHTML=`<div class="hintbar">⇶ Every open deal in one board. Move deals right by converting requests and sending / approving quotes.</div>
   <div class="kanban">
-    ${col('Leads',leads,r=>`<div class="kcard"><div class="strong">${r.name}</div><div class="tiny">${r.service}</div><div style="margin-top:8px"><button class="btn sm" onclick="convertRequest('${r.id}')">Quote it →</button></div></div>`)}
-    ${col('Quoted',quoted,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${client(q.clientId).name}</div><div class="tiny">${q.title}</div><div class="amt">${money(quoteTotal(q))}</div><div style="margin-top:4px">${statusPill(q.status)}</div></div>`,quoted.reduce((s,q)=>s+quoteTotal(q),0))}
-    ${col('Won',won,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${client(q.clientId).name}</div><div class="tiny">${q.title}</div><div class="amt" style="color:var(--green-d)">${money(quoteTotal(q))}</div></div>`,won.reduce((s,q)=>s+quoteTotal(q),0))}
+    ${col('Leads',leads,r=>`<div class="kcard"><div class="strong">${esc(r.name)}</div><div class="tiny">${esc(r.service)}</div><div style="margin-top:8px"><button class="btn sm" onclick="convertRequest('${r.id}')">Quote it →</button></div></div>`)}
+    ${col('Quoted',quoted,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${esc(client(q.clientId).name)}</div><div class="tiny">${esc(q.title)}</div><div class="amt">${money(quoteTotal(q))}</div><div style="margin-top:4px">${statusPill(q.status)}</div></div>`,quoted.reduce((s,q)=>s+quoteTotal(q),0))}
+    ${col('Won',won,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${esc(client(q.clientId).name)}</div><div class="tiny">${esc(q.title)}</div><div class="amt" style="color:var(--green-d)">${money(quoteTotal(q))}</div></div>`,won.reduce((s,q)=>s+quoteTotal(q),0))}
   </div>`;
 };
 
@@ -581,17 +634,17 @@ views.hub=function(sel){
   const qs=state.quotes.filter(q=>q.clientId===cid&&q.status==='sent');
   const is=state.invoices.filter(i=>i.clientId===cid&&invBalance(i)>0);
   const js=state.jobs.filter(j=>j.clientId===cid&&j.status!=='complete');
-  el().innerHTML=`<div class="hintbar">◱ This is the <b>customer-facing portal</b> — what ${c.name} sees when they click a link you text them. Approve a quote or pay an invoice here and watch it update in your back office.</div>
-  <div style="max-width:640px;margin:0 auto 14px"><label class="fld"><span>Preview as client</span><select onchange="go('hub',this.value)">${state.clients.map(x=>`<option value="${x.id}" ${x.id===cid?'selected':''}>${x.name}</option>`).join('')}</select></label></div>
+  el().innerHTML=`<div class="hintbar">◱ This is the <b>customer-facing portal</b> — what ${esc(c.name)} sees when they click a link you text them. Approve a quote or pay an invoice here and watch it update in your back office.</div>
+  <div style="max-width:640px;margin:0 auto 14px"><label class="fld"><span>Preview as client</span><select onchange="go('hub',this.value)">${state.clients.map(x=>`<option value="${x.id}" ${x.id===cid?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label></div>
   <div class="hub">
-    <div class="hh"><h3>${activeWs?activeWs.name:'Your Business'}</h3><div class="tiny">Client portal for ${c.contact||c.name}</div></div>
+    <div class="hh"><h3>${esc(activeWs?activeWs.name:'Your Business')}</h3><div class="tiny">Client portal for ${esc(c.contact||c.name)}</div></div>
     <div class="hb">
       <div class="sec-title">Quotes waiting for your approval</div>
-      ${qs.length?qs.map(q=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${q.title}</div><div class="tiny">Quoted ${dfmt(q.date)}</div></div><div class="strong">${money(quoteTotal(q))}</div></div><button class="btn sm" onclick="hubApprove('${q.id}','${cid}')">✓ Approve quote</button></div>`).join(''):'<div class="tiny" style="margin-bottom:6px">Nothing waiting.</div>'}
+      ${qs.length?qs.map(q=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${esc(q.title)}</div><div class="tiny">Quoted ${dfmt(q.date)}</div></div><div class="strong">${money(quoteTotal(q))}</div></div><button class="btn sm" onclick="hubApprove('${q.id}','${cid}')">✓ Approve quote</button></div>`).join(''):'<div class="tiny" style="margin-bottom:6px">Nothing waiting.</div>'}
       <div class="sec-title">Upcoming visits</div>
-      ${js.length?js.map(j=>`<div class="chk"><span>▦</span><label><b>${dfmt(j.date)}</b> — ${j.title}</label></div>`).join(''):'<div class="tiny">No visits scheduled.</div>'}
+      ${js.length?js.map(j=>`<div class="chk"><span>▦</span><label><b>${dfmt(j.date)}</b> — ${esc(j.title)}</label></div>`).join(''):'<div class="tiny">No visits scheduled.</div>'}
       <div class="sec-title">Invoices due</div>
-      ${is.length?is.map(i=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${i.title}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong" style="color:var(--red)">${money(invBalance(i))}</div></div><button class="btn sm" onclick="hubPay('${i.id}','${cid}')">Pay ${money(invBalance(i))} by card</button></div>`).join(''):'<div class="tiny">Nothing due. 🎉</div>'}
+      ${is.length?is.map(i=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${esc(i.title)}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong" style="color:var(--red)">${money(invBalance(i))}</div></div><button class="btn sm" onclick="hubPay('${i.id}','${cid}')">Pay ${money(invBalance(i))} by card</button></div>`).join(''):'<div class="tiny">Nothing due. 🎉</div>'}
     </div>
   </div>`;
 };
@@ -603,7 +656,7 @@ function hubPay(iid,cid){const inv=state.invoices.find(i=>i.id===iid);
 
 /* ---- JOBS / SCHEDULE ---- */
 function tableJobs(list){return `<div class="tablewrap"><table><thead><tr><th>Job</th><th>Client</th><th>Date</th><th>Crew</th><th>Progress</th><th>Status</th></tr></thead><tbody>${
-  list.map(j=>{const done=j.checklist.filter(c=>c.done).length;return `<tr class="click" onclick="jobDetail('${j.id}')"><td><div class="strong">${j.title}</div><div class="tiny">${j.id.toUpperCase()}</div></td><td>${client(j.clientId).name}</td><td class="tiny">${dfmt(j.date)}</td><td class="tiny">${j.crew}</td><td class="tiny">${done}/${j.checklist.length} tasks</td><td>${statusPill(j.status)}</td></tr>`;}).join('')
+  list.map(j=>{const done=j.checklist.filter(c=>c.done).length;return `<tr class="click" onclick="jobDetail('${j.id}')"><td><div class="strong">${esc(j.title)}</div><div class="tiny">${j.id.toUpperCase()}</div></td><td>${esc(client(j.clientId).name)}</td><td class="tiny">${dfmt(j.date)}</td><td class="tiny">${esc(j.crew)}</td><td class="tiny">${done}/${j.checklist.length} tasks</td><td>${statusPill(j.status)}</td></tr>`;}).join('')
 }</tbody></table></div>`;}
 views.schedule=function(){
   const sorted=[...state.jobs].sort((a,b)=>a.date.localeCompare(b.date));
@@ -615,12 +668,12 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=client(j.cl
   const inv=state.invoices.find(i=>i.jobId===id);
   const labor=jobLabor(id), exp=jobExp(id);
   el().innerHTML=`<div class="back" onclick="go('schedule')">← Schedule</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${j.title}</h2><div class="tiny">${j.id.toUpperCase()} · ${c.name}</div></div><div>${statusPill(j.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${esc(j.title)}</h2><div class="tiny">${j.id.toUpperCase()} · ${esc(c.name)}</div></div><div>${statusPill(j.status)}</div></div>
   <div class="flow">${steps.map((s,i)=>`<div class="step ${i<=si?'done':''}"><span class="n">${i<=si?'✓':i+1}</span>${({scheduled:'Scheduled',in_progress:'In progress',complete:'Complete'})[s]}</div>${i<2?'<span class="arw"></span>':''}`).join('')}</div>
   <div class="kv">
     <div><div class="k">Scheduled date</div><div class="v">${dfmt(j.date)}</div></div>
-    <div><div class="k">Crew</div><div class="v">${j.crew}</div></div>
-    <div><div class="k">Site</div><div class="v">${c.address}</div></div>
+    <div><div class="k">Crew</div><div class="v">${esc(j.crew)}</div></div>
+    <div><div class="k">Site</div><div class="v">${esc(c.address)}</div></div>
     <div><div class="k">Source</div><div class="v">${j.quoteId?j.quoteId.toUpperCase()+' (quote)':'Direct'}</div></div>
     ${has('timesheets')?`<div><div class="k">Labor logged</div><div class="v">${money(labor)}</div></div>`:''}
     ${has('expenses')?`<div><div class="k">Expenses</div><div class="v">${money(exp)}</div></div>`:''}
@@ -629,7 +682,7 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=client(j.cl
   <div class="grid cards2" style="align-items:start">
     <div class="card">
       <div class="strong" style="margin-bottom:6px">On-site checklist <span class="tiny">(${done}/${total})</span></div>
-      ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}"><input type="checkbox" ${ck.done?'checked':''} onchange="toggleChk('${id}',${idx})" id="ck${idx}"><label for="ck${idx}">${ck.t}</label></div>`).join('')}
+      ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}"><input type="checkbox" ${ck.done?'checked':''} onchange="toggleChk('${id}',${idx})" id="ck${idx}"><label for="ck${idx}">${esc(ck.t)}</label></div>`).join('')}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:10px">Move this job along</div>
@@ -659,14 +712,14 @@ views.timesheets=function(){
   </div>
   <div class="sec-title">Entries</div>
   <div class="tablewrap"><table><thead><tr><th>Date</th><th>Crew member</th><th>Job</th><th style="text-align:right">Hours</th><th style="text-align:right">Rate</th><th style="text-align:right">Cost</th></tr></thead><tbody>${
-    state.timesheets.map(t=>{const j=state.jobs.find(x=>x.id===t.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(t.date)}</td><td class="strong">${t.worker}</td><td class="tiny">${j.title}</td><td style="text-align:right">${t.hours}</td><td style="text-align:right">${money(t.rate)}/hr</td><td style="text-align:right" class="strong">${money(t.hours*t.rate)}</td></tr>`;}).join('')
+    state.timesheets.map(t=>{const j=state.jobs.find(x=>x.id===t.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(t.date)}</td><td class="strong">${esc(t.worker)}</td><td class="tiny">${esc(j.title)}</td><td style="text-align:right">${t.hours}</td><td style="text-align:right">${money(t.rate)}/hr</td><td style="text-align:right" class="strong">${money(t.hours*t.rate)}</td></tr>`;}).join('')
   }</tbody></table></div>`;
 };
 function newTime(preJob){
   if(needJobs())return;
   openModal(`<div class="mhead"><h3>Log time</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <label class="fld"><span>Job</span><select id="t_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${j.title}</option>`).join('')}</select></label>
+    <label class="fld"><span>Job</span><select id="t_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${esc(j.title)}</option>`).join('')}</select></label>
     <div class="row2">
       <label class="fld"><span>Crew member</span><input id="t_worker" placeholder="Name"></label>
       <label class="fld"><span>Date</span><input id="t_date" type="date" value="${today}"></label>
@@ -687,14 +740,14 @@ views.expenses=function(){
   const tot=state.expenses.reduce((s,e)=>s+e.amount,0);
   el().innerHTML=`<div class="note">⌥ Expenses roll into <b>job costing</b> so you see real margins per job.</div>
   <div class="tablewrap"><table><thead><tr><th>Date</th><th>Description</th><th>Job</th><th style="text-align:right">Amount</th></tr></thead><tbody>${
-    state.expenses.map(e=>{const j=state.jobs.find(x=>x.id===e.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(e.date)}</td><td class="strong">${e.desc}</td><td class="tiny">${j.title}</td><td style="text-align:right" class="strong">${money(e.amount)}</td></tr>`;}).join('')
+    state.expenses.map(e=>{const j=state.jobs.find(x=>x.id===e.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(e.date)}</td><td class="strong">${esc(e.desc)}</td><td class="tiny">${esc(j.title)}</td><td style="text-align:right" class="strong">${money(e.amount)}</td></tr>`;}).join('')
   }<tr><td colspan="3" class="strong" style="text-align:right">Total</td><td style="text-align:right" class="strong">${money(tot)}</td></tr></tbody></table></div>`;
 };
 function newExpense(preJob){
   if(needJobs())return;
   openModal(`<div class="mhead"><h3>Add expense</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <label class="fld"><span>Job</span><select id="e_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${j.title}</option>`).join('')}</select></label>
+    <label class="fld"><span>Job</span><select id="e_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${esc(j.title)}</option>`).join('')}</select></label>
     <label class="fld"><span>Description</span><input id="e_desc" placeholder="e.g. Primer & sundries"></label>
     <div class="row2">
       <label class="fld"><span>Amount</span><input id="e_amt" type="number" step="any" placeholder="0.00"></label>
@@ -709,17 +762,17 @@ function saveExpense(){const d=document.getElementById('e_desc').value.trim();if
 
 /* ---- INVOICES ---- */
 function tableInvoices(list){return `<div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Client</th><th>Due</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>${
-  list.map(i=>`<tr class="click" onclick="invoiceDetail('${i.id}')"><td><div class="strong">${i.title}</div><div class="tiny">${i.id.toUpperCase()}${state.integrations.qbo?' · QBO ✓':''}</div></td><td>${client(i.clientId).name}</td><td class="tiny">${dfmt(i.due)}</td><td class="strong">${money(invTotal(i))}</td><td>${invBalance(i)>0?`<span class="strong" style="color:var(--red)">${money(invBalance(i))}</span>`:'<span class="tiny">—</span>'}</td><td>${invBalance(i)<=0?statusPill('paid'):statusPill(i.status)}</td></tr>`).join('')
+  list.map(i=>`<tr class="click" onclick="invoiceDetail('${i.id}')"><td><div class="strong">${esc(i.title)}</div><div class="tiny">${i.id.toUpperCase()}${state.integrations.qbo?' · QBO ✓':''}</div></td><td>${esc(client(i.clientId).name)}</td><td class="tiny">${dfmt(i.due)}</td><td class="strong">${money(invTotal(i))}</td><td>${invBalance(i)>0?`<span class="strong" style="color:var(--red)">${money(invBalance(i))}</span>`:'<span class="tiny">—</span>'}</td><td>${invBalance(i)<=0?statusPill('paid'):statusPill(i.status)}</td></tr>`).join('')
 }</tbody></table></div>`;}
 views.invoices=function(){el().innerHTML=state.invoices.length?tableInvoices(state.invoices):'<div class="card empty">No invoices yet.</div>';};
 
 function invoiceDetail(id){const inv=state.invoices.find(x=>x.id===id);const c=client(inv.clientId);
   const bal=invBalance(inv),paid=invPaid(inv);const pays=state.payments.filter(p=>p.invoiceId===id);
   el().innerHTML=`<div class="back" onclick="go('invoices')">← All invoices</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${inv.title}</h2><div class="tiny">${inv.id.toUpperCase()} · ${c.name} · issued ${dfmt(inv.date)} · due ${dfmt(inv.due)} ${state.integrations.qbo?pill('Synced to QuickBooks ✓','p-green'):''}</div></div><div>${bal<=0?statusPill('paid'):statusPill(inv.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${esc(inv.title)}</h2><div class="tiny">${inv.id.toUpperCase()} · ${esc(c.name)} · issued ${dfmt(inv.date)} · due ${dfmt(inv.due)} ${state.integrations.qbo?pill('Synced to QuickBooks ✓','p-green'):''}</div></div><div>${bal<=0?statusPill('paid'):statusPill(inv.status)}</div></div>
   <div class="card">
     <table><thead><tr><th>Line item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>
-    ${inv.items.map(i=>`<tr><td>${i.d}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
+    ${inv.items.map(i=>`<tr><td>${esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
     </tbody></table>
     <div style="max-width:300px;margin-left:auto;margin-top:14px">
       <div class="subtot"><span>Total</span><span>${money(invTotal(inv))}</span></div>
@@ -730,6 +783,7 @@ function invoiceDetail(id){const inv=state.invoices.find(x=>x.id===id);const c=c
   <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
     ${inv.status==='draft'?`<button class="btn" onclick="setInv('${id}','sent')">Send invoice${state.integrations.gmail?' via Gmail':''}</button>`:''}
     ${bal>0?`<button class="btn" onclick="recordPayment('${id}')">✓ Record a payment</button>`:'<div class="note" style="margin:0">Paid in full. 🎉</div>'}
+    <button class="btn sec" onclick="window.print()">🖨 Print / PDF</button>
     <button class="btn danger sm" onclick="delItem('invoices','${id}')">Delete</button>
   </div>
   ${bal>0&&has('automations')&&state.automations.find(a=>a.key==='a3').on?'<div class="note" style="margin-top:16px">⚙ Automation armed: reminders fire at 3, 7 and 14 days past due.</div>':''}
@@ -748,7 +802,7 @@ views.payments=function(){
   </div>
   <div class="sec-title">All payments</div>
   ${state.payments.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Client</th><th>Invoice</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>${
-    [...state.payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{const inv=state.invoices.find(i=>i.id===p.invoiceId)||{};return `<tr class="click" onclick="invoiceDetail('${p.invoiceId}')"><td class="tiny">${dfmt(p.date)}</td><td class="strong">${client(inv.clientId).name}</td><td class="tiny">${(p.invoiceId||'').toUpperCase()}</td><td>${p.method}</td><td style="text-align:right" class="strong">${money(p.amount)}</td></tr>`;}).join('')
+    [...state.payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{const inv=state.invoices.find(i=>i.id===p.invoiceId)||{};return `<tr class="click" onclick="invoiceDetail('${p.invoiceId}')"><td class="tiny">${dfmt(p.date)}</td><td class="strong">${esc(client(inv.clientId).name)}</td><td class="tiny">${(p.invoiceId||'').toUpperCase()}</td><td>${p.method}</td><td style="text-align:right" class="strong">${money(p.amount)}</td></tr>`;}).join('')
   }</tbody></table></div>`:'<div class="card empty">No payments recorded yet.</div>'}`;
 };
 
@@ -759,7 +813,7 @@ views.marketing=function(){
     <div class="card">
       <div class="strong" style="margin-bottom:4px">⭐ Review requests</div>
       <div class="tiny" style="margin-bottom:10px">One-tap Google review asks after each job.${state.integrations.nicejob?' <b>NiceJob connected ✓</b>':''}</div>
-      ${recent.map(c=>`<div class="chk" style="justify-content:space-between"><label>${c.name}</label>${state.reviewSent[c.id]?pill(state.reviewSent[c.id]==='sent'?'Requested':'★★★★★ received','p-green'):`<button class="btn sm sec" onclick="sendReview('${c.id}')">Request</button>`}</div>`).join('')||'<div class="tiny">Add clients to start requesting reviews.</div>'}
+      ${recent.map(c=>`<div class="chk" style="justify-content:space-between"><label>${esc(c.name)}</label>${state.reviewSent[c.id]?pill(state.reviewSent[c.id]==='sent'?'Requested':'★★★★★ received','p-green'):`<button class="btn sm sec" onclick="sendReview('${c.id}')">Request</button>`}</div>`).join('')||'<div class="tiny">Add clients to start requesting reviews.</div>'}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:4px">✉ Email campaign</div>
@@ -767,7 +821,7 @@ views.marketing=function(){
       <label class="fld"><span>Subject</span><input id="camp_subj" placeholder="Summer exterior special — 10% off"></label>
       <label class="fld"><span>Message</span><textarea id="camp_body" rows="3" placeholder="Book before Aug 15 and save…"></textarea></label>
       <button class="btn sm" onclick="sendCampaign()">Send to ${state.clients.length} clients</button>
-      ${state.campaigns.map(cp=>`<div class="note" style="margin-top:10px;margin-bottom:0">Sent “${cp.subj}” → ${cp.n} clients · ${cp.opens} opens</div>`).join('')}
+      ${state.campaigns.map(cp=>`<div class="note" style="margin-top:10px;margin-bottom:0">Sent “${esc(cp.subj)}” → ${cp.n} clients · ${cp.opens} opens</div>`).join('')}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:4px">🤝 Referral program</div>
@@ -813,8 +867,8 @@ views.ai=function(){
 };
 function simCall(){
   const sim=AI_SIMS[state.aiSimIdx % AI_SIMS.length]; state.aiSimIdx++;
-  state.aiCalls.unshift({when:'Jul 18 (just now)', caller:sim.caller, outcome:'Booked request', lines:sim.lines});
-  state.requests.unshift({id:uid('r'),name:sim.name,phone:sim.caller,service:sim.service,pref:'2026-07-27',source:'AI Receptionist',status:'new'});
+  state.aiCalls.unshift({when:shortDate(today)+' (just now)', caller:sim.caller, outcome:'Booked request', lines:sim.lines});
+  state.requests.unshift({id:uid('r'),name:sim.name,phone:sim.caller,service:sim.service,pref:daysFromNow(9),source:'AI Receptionist',status:'new'});
   toast('✦ AI booked a new request — check Requests');
   go('ai');
 }
@@ -839,7 +893,7 @@ views.reports=function(){
   </div>
   <div class="sec-title">Per-job breakdown</div>
   <div class="tablewrap"><table><thead><tr><th>Job</th><th style="text-align:right">Quoted</th><th style="text-align:right">Invoiced</th><th style="text-align:right">Labor</th><th style="text-align:right">Materials</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr></thead><tbody>${
-    rows.map(r=>`<tr class="click" onclick="jobDetail('${r.j.id}')"><td><div class="strong">${r.j.title}</div><div class="tiny">${client(r.j.clientId).name} · ${statusPill(r.j.status)}</div></td><td style="text-align:right">${r.quoted?money(r.quoted):'—'}</td><td style="text-align:right">${r.invd?money(r.invd):'—'}</td><td style="text-align:right">${money(r.labor)}</td><td style="text-align:right">${money(r.exp)}</td><td style="text-align:right" class="strong" style="color:${r.profit>=0?'inherit':'var(--red)'}">${money(r.profit)}</td><td style="text-align:right">${r.rev?`<span class="pill ${r.margin>=45?'p-green':r.margin>=25?'p-amber':'p-red'}">${Math.round(r.margin)}%</span>`:'—'}</td></tr>`).join('')
+    rows.map(r=>`<tr class="click" onclick="jobDetail('${r.j.id}')"><td><div class="strong">${r.j.title}</div><div class="tiny">${esc(client(r.j.clientId).name)} · ${statusPill(r.j.status)}</div></td><td style="text-align:right">${r.quoted?money(r.quoted):'—'}</td><td style="text-align:right">${r.invd?money(r.invd):'—'}</td><td style="text-align:right">${money(r.labor)}</td><td style="text-align:right">${money(r.exp)}</td><td class="strong" style="text-align:right;color:${r.profit>=0?'inherit':'var(--red)'}">${money(r.profit)}</td><td style="text-align:right">${r.rev?`<span class="pill ${r.margin>=45?'p-green':r.margin>=25?'p-amber':'p-red'}">${Math.round(r.margin)}%</span>`:'—'}</td></tr>`).join('')
   }</tbody></table></div>
   <div class="tiny" style="margin-top:10px">Log more time (Timesheets) and materials (Expenses) to watch these margins move.</div>`;
 };
@@ -882,7 +936,7 @@ function toggleInt(k){state.integrations[k]=!state.integrations[k];
   const i=INTS.find(x=>x.key===k);
   toast(i.name+(state.integrations[k]?' connected ✓':' disconnected'));
   if(k==='thumbtack'&&state.integrations[k]){
-    state.requests.unshift({id:uid('r'),name:'Thumbtack lead — Casey Lin',phone:'(303) 555-0171',service:'Basement ceiling — paint & texture',pref:'2026-08-04',source:'Thumbtack',status:'new'});
+    state.requests.unshift({id:uid('r'),name:'Thumbtack lead — Casey Lin',phone:'(303) 555-0171',service:'Basement ceiling — paint & texture',pref:daysFromNow(16),source:'Thumbtack',status:'new'});
     toast('Thumbtack connected — a lead just landed in Requests!');
   }
   go('integrations');}
@@ -952,7 +1006,7 @@ function newQuote(preClient,preTitle){if(needClients())return;draftItems=[{d:'',
   openModal(`<div class="mhead"><h3>New quote</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="q_client">${state.clients.map(c=>`<option value="${c.id}" ${c.id===preClient?'selected':''}>${c.name}</option>`).join('')}</select></label>
+      <label class="fld"><span>Client</span><select id="q_client">${state.clients.map(c=>`<option value="${c.id}" ${c.id===preClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
       <label class="fld"><span>Date</span><input id="q_date" type="date" value="${today}"></label>
     </div>
     <label class="fld"><span>Job title</span><input id="q_title" value="${preTitle?esc(preTitle):''}" placeholder="e.g. Interior repaint — main level"></label>
@@ -990,7 +1044,7 @@ function newJob(preClient,fromQuote){
   <div class="mbody">
     ${q?`<div class="note">Building a job from approved quote <b>${q.id.toUpperCase()}</b> — ${money(quoteTotal(q))}.</div>`:''}
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="j_client" ${q?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${c.name}</option>`).join('')}</select></label>
+      <label class="fld"><span>Client</span><select id="j_client" ${q?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
       <label class="fld"><span>Date</span><input id="j_date" type="date" value="${today}"></label>
     </div>
     <label class="fld"><span>Job title</span><input id="j_title" value="${q?esc(q.title):''}" placeholder="What's the work?"></label>
@@ -1014,8 +1068,8 @@ function newInvoice(preClient,fromJob){
   <div class="mbody">
     ${q?`<div class="note">Line items pulled from quote <b>${q.id.toUpperCase()}</b>. Edit before sending.</div>`:''}
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="q_client" ${j?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${c.name}</option>`).join('')}</select></label>
-      <label class="fld"><span>Due date</span><input id="i_due" type="date" value="2026-08-01"></label>
+      <label class="fld"><span>Client</span><select id="q_client" ${j?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Due date</span><input id="i_due" type="date" value="${daysFromNow(14)}"></label>
     </div>
     <label class="fld"><span>Invoice title</span><input id="q_title" value="${j?esc(j.title):''}" placeholder="What's this invoice for?"></label>
     <span style="display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin:6px 0 8px">Line items</span>
@@ -1028,13 +1082,13 @@ function newInvoice(preClient,fromJob){
 }
 function saveInvoice(status,fromJob){const title=document.getElementById('q_title').value.trim();if(!title){toast('Add a title');return;}
   const items=draftItems.filter(i=>i.d.trim()).map(i=>({d:i.d,q:+i.q||0,p:+i.p||0}));if(!items.length){toast('Add a line item');return;}
-  const inv={id:uid('i'),clientId:document.getElementById('q_client').value,jobId:fromJob||null,title,status,date:today,due:document.getElementById('i_due').value||'2026-08-01',items};
+  const inv={id:uid('i'),clientId:document.getElementById('q_client').value,jobId:fromJob||null,title,status,date:today,due:document.getElementById('i_due').value||daysFromNow(14),items};
   state.invoices.push(inv);closeModal();toast(status==='sent'?('Invoice sent'+(state.integrations.qbo?' · synced to QBO':'')):'Draft saved');go('invoices');invoiceDetail(inv.id);}
 
 function recordPayment(invId){const inv=state.invoices.find(i=>i.id===invId);const bal=invBalance(inv);
   openModal(`<div class="mhead"><h3>Record payment</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <div class="note">${inv.title} — balance due <b>${money(bal)}</b></div>
+    <div class="note">${esc(inv.title)} — balance due <b>${money(bal)}</b></div>
     <div class="row2">
       <label class="fld"><span>Amount</span><input id="pay_amt" type="number" step="any" value="${bal.toFixed(2)}"></label>
       <label class="fld"><span>Date</span><input id="pay_date" type="date" value="${today}"></label>
@@ -1094,7 +1148,7 @@ function showLauncher(){
     <div class="lhead"><h1>TradeLine</h1><p>From first call to final invoice. Run multiple businesses side by side — each keeps its own clients, jobs, money, plan and integrations, saved in this browser.</p></div>
     ${list.length?`<div class="bizgrid">${list.map(w=>`
       <div class="bizcard">
-        <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${(w.name.trim()[0]||'A').toUpperCase()}</span><div><h3>${w.name}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
+        <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${esc((w.name.trim()[0]||'A').toUpperCase())}</span><div><h3>${esc(w.name)}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
         <div class="actions"><button class="btn sm" onclick="openWorkspace('${w.key}')">Open →</button><button class="btn danger sm" onclick="deleteWorkspace('${w.key}')">Delete</button></div>
       </div>`).join('')}</div>`:''}
     <div class="launchform">
