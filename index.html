@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeLine — From first call to final invoice</title>
+<meta name="description" content="TradeLine is a field-service CRM built for the trades — requests, quotes, scheduling, invoicing, payments and real job costing in one place. Try the working demo, no signup.">
+<meta property="og:title" content="TradeLine — Field Service CRM for the trades">
+<meta property="og:description" content="From first call to final invoice. Try the working demo — no signup, nothing to install.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232f6fa8'/><text x='50' y='72' font-size='62' font-weight='bold' font-family='Arial' fill='white' text-anchor='middle'>T</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f1e2e; --navy-2:#16293e; --steel:#2f6fa8; --steel-l:#5b96c9; --steel-glow:#7db4e0;
+    --paper:#f2f0ea; --ink:#1c2530; --muted:#5d6b7a; --line:#d9d4c8; --line-navy:#24405c;
+    --amber:#e0a63a; --ok:#3fae7c;
+    --disp:'Big Shoulders Display',sans-serif; --body:'Barlow',sans-serif; --mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--body);color:var(--ink);background:var(--paper);line-height:1.55;font-size:16.5px}
+  ::selection{background:var(--steel);color:#fff}
+
+  /* measurement-tick strip, like a tape measure */
+  .ticks{height:14px;background:
+    repeating-linear-gradient(90deg, var(--steel) 0 2px, transparent 2px 24px),
+    repeating-linear-gradient(90deg, var(--line-navy) 0 1px, transparent 1px 8px);
+    background-color:var(--navy);border-bottom:3px solid var(--steel)}
+
+  /* ============ HERO ============ */
+  .hero{background:var(--navy);color:#e7eef5;position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(transparent 31px, rgba(91,150,201,.07) 32px),
+      linear-gradient(90deg, transparent 31px, rgba(91,150,201,.07) 32px);
+    background-size:32px 32px}
+  .hero::after{content:'';position:absolute;right:-180px;top:-180px;width:560px;height:560px;border-radius:50%;
+    background:radial-gradient(circle, rgba(47,111,168,.28), transparent 65%);pointer-events:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 26px;position:relative}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+  .logo{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-weight:800;font-size:25px;letter-spacing:.5px;color:#fff}
+  .logo .dot{width:32px;height:32px;border-radius:8px;background:var(--steel);display:inline-flex;align-items:center;justify-content:center;font-size:19px}
+  .logo small{font-family:var(--mono);font-weight:500;font-size:10px;color:#7f9ab5;letter-spacing:.16em;display:block;text-transform:uppercase}
+  .toplinks{display:flex;gap:26px;align-items:center;font-size:14.5px}
+  .toplinks a{color:#b9cbde;text-decoration:none;font-weight:500}
+  .toplinks a:hover{color:#fff}
+  .btn{display:inline-flex;align-items:center;gap:10px;background:var(--steel);color:#fff;text-decoration:none;
+    font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.06em;text-transform:uppercase;
+    padding:15px 28px;border:none;cursor:pointer;position:relative;
+    box-shadow:4px 4px 0 rgba(0,0,0,.35);transition:transform .12s,box-shadow .12s;border-radius:3px}
+  .btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 rgba(0,0,0,.35);background:var(--steel-l)}
+  .btn:active{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+  .btn.small{font-size:15px;padding:10px 18px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+  .btn.ghosty{background:transparent;border:2px solid var(--line-navy);color:#b9cbde;box-shadow:none}
+  .btn.ghosty:hover{border-color:var(--steel-l);color:#fff;background:rgba(47,111,168,.12)}
+
+  .herogrid{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center;padding:64px 0 88px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--steel-glow);
+    display:inline-flex;align-items:center;gap:10px;margin-bottom:20px}
+  .eyebrow::before{content:'';width:34px;height:2px;background:var(--steel)}
+  h1{font-family:var(--disp);font-weight:800;font-size:clamp(52px,7.5vw,92px);line-height:.95;letter-spacing:.01em;
+    text-transform:uppercase;color:#fff;text-wrap:balance}
+  h1 .under{color:var(--steel-glow);position:relative;white-space:nowrap}
+  h1 .under::after{content:'';position:absolute;left:0;right:0;bottom:6px;height:5px;background:var(--steel);z-index:-1}
+  .sub{font-size:19px;color:#aebfd0;max-width:34em;margin:24px 0 34px}
+  .sub b{color:#e7eef5}
+  .ctarow{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .ctanote{font-family:var(--mono);font-size:12px;color:#7f9ab5;margin-top:16px;letter-spacing:.04em}
+  .trades{margin-top:40px;padding-top:22px;border-top:1px dashed var(--line-navy);font-family:var(--mono);
+    font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:#6f8aa5;line-height:2.2}
+  .trades span{color:#9db4ca}
+
+  /* mock dashboard card */
+  .mock{background:#fff;border-radius:10px;box-shadow:0 30px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06);
+    overflow:hidden;font-size:12px;color:var(--ink);transform:rotate(1.2deg)}
+  .mock .mtop{background:var(--navy-2);color:#cfdeed;padding:10px 14px;display:flex;gap:7px;align-items:center;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+  .mock .mtop i{width:9px;height:9px;border-radius:50%;background:#39567a;display:inline-block}
+  .mock .mtop i:first-child{background:var(--steel-l)}
+  .mock .mbody{padding:16px}
+  .mstats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px}
+  .mstat{border:1px solid #e4e8ec;border-radius:7px;padding:9px 11px}
+  .mstat .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#6b7683}
+  .mstat .v{font-family:var(--disp);font-weight:800;font-size:21px;margin-top:2px}
+  .mstat .v.blue{color:var(--steel)}
+  .mrow{display:flex;justify-content:space-between;align-items:center;padding:8px 3px;border-bottom:1px solid #eef0f2;font-size:11.5px}
+  .mrow:last-child{border-bottom:none}
+  .mrow .pill{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;padding:3px 8px;border-radius:12px;font-weight:600;text-transform:uppercase}
+  .pg{background:#d9efec;color:#0f766e}.pb{background:#e8effd;color:#2563eb}.pa{background:#fdf3d9;color:#a07508}
+  .stamp{position:absolute;bottom:-16px;right:18px;transform:rotate(-7deg);font-family:var(--mono);font-weight:600;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok);border:2px solid var(--ok);
+    padding:5px 12px;border-radius:4px;background:rgba(255,255,255,.92)}
+  .mockwrap{position:relative}
+
+  /* ============ FLOW ============ */
+  .flowband{background:var(--ink);color:#dfe6ec;border-top:3px solid var(--steel)}
+  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;padding:0}
+  .fstep{padding:26px 22px 30px;border-right:1px dashed #35414e;position:relative}
+  .fstep:last-child{border-right:none}
+  .fstep .n{font-family:var(--mono);font-size:11px;color:var(--steel-glow);letter-spacing:.18em}
+  .fstep h3{font-family:var(--disp);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 4px;color:#fff}
+  .fstep p{font-size:13px;color:#93a1af}
+  .fstep::after{content:'→';position:absolute;right:-9px;top:32px;color:var(--steel);font-size:18px;background:var(--ink);z-index:2}
+  .fstep:last-child::after{content:''}
+
+  /* ============ SECTIONS ============ */
+  section{padding:88px 0}
+  .sechead{margin-bottom:48px;max-width:640px}
+  .sechead .eyebrow{color:var(--steel)}
+  .sechead .eyebrow::before{background:var(--steel)}
+  h2{font-family:var(--disp);font-weight:800;font-size:clamp(36px,4.5vw,54px);line-height:1;text-transform:uppercase;color:var(--ink);text-wrap:balance}
+  .sechead p{color:var(--muted);margin-top:14px;font-size:17.5px}
+
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .feat{background:var(--paper);padding:30px 26px;position:relative;transition:background .15s}
+  .feat:hover{background:#fff}
+  .feat .fno{font-family:var(--mono);font-size:10.5px;color:var(--steel);letter-spacing:.16em}
+  .feat h3{font-family:var(--disp);font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.03em;margin:10px 0 8px}
+  .feat p{font-size:14.5px;color:var(--muted)}
+  .feat .tag{position:absolute;top:26px;right:22px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);padding:2px 7px;border-radius:3px}
+
+  /* plans */
+  .plansband{background:var(--navy);color:#e7eef5;position:relative;overflow:hidden}
+  .plansband::before{content:'';position:absolute;inset:0;
+    background:linear-gradient(transparent 31px, rgba(91,150,201,.06) 32px),linear-gradient(90deg, transparent 31px, rgba(91,150,201,.06) 32px);
+    background-size:32px 32px;pointer-events:none}
+  .plansband h2{color:#fff}
+  .plansband .sechead p{color:#aebfd0}
+  .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .plan{border:1px solid var(--line-navy);border-radius:8px;padding:24px 22px;background:rgba(22,41,62,.6);position:relative}
+  .plan.hot{border-color:var(--steel);background:rgba(47,111,168,.16)}
+  .plan.hot::before{content:'MOST COMPLETE';position:absolute;top:-9px;left:20px;font-family:var(--mono);font-size:9px;
+    letter-spacing:.16em;background:var(--steel);color:#fff;padding:2px 9px;border-radius:3px}
+  .plan h4{font-family:var(--disp);font-weight:700;font-size:23px;text-transform:uppercase;letter-spacing:.05em}
+  .plan .pr{font-family:var(--disp);font-weight:800;font-size:38px;margin:10px 0 2px;color:#fff}
+  .plan .pr small{font-family:var(--body);font-weight:400;font-size:13px;color:#7f9ab5}
+  .plan ul{list-style:none;margin-top:14px}
+  .plan li{font-size:13.5px;padding:4px 0;color:#b9cbde}
+  .plan li::before{content:'▸ ';color:var(--steel-glow)}
+  .plansnote{font-family:var(--mono);font-size:11px;color:#7f9ab5;margin-top:22px;letter-spacing:.04em}
+
+  /* final CTA */
+  .final{text-align:center;padding:100px 26px}
+  .final h2{margin-bottom:14px}
+  .final p{color:var(--muted);max-width:34em;margin:0 auto 34px;font-size:18px}
+
+  footer{background:var(--ink);color:#93a1af;padding:34px 0;font-size:13.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+  footer a{color:#c8d2db}
+  .foot-mono{font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+
+  /* reveal animation */
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease}
+  .rv.in{opacity:1;transform:none}
+  .hero .rv{transition-delay:calc(var(--d,0)*90ms)}
+  @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.btn{transition:none}}
+
+  @media(max-width:920px){
+    .herogrid{grid-template-columns:1fr;padding:40px 0 64px;gap:40px}
+    .mock{transform:none;max-width:480px}
+    .flow{grid-template-columns:1fr 1fr}
+    .fstep::after{content:''}
+    .feats{grid-template-columns:1fr 1fr}
+    .plans{grid-template-columns:1fr 1fr}
+    section{padding:64px 0}
+    .toplinks a.hideS{display:none}
+  }
+  @media(max-width:560px){
+    .flow{grid-template-columns:1fr}
+    .feats{grid-template-columns:1fr}
+    .plans{grid-template-columns:1fr}
+    body{font-size:15.5px}
+  }
+</style>
+</head>
+<body>
+
+<div class="ticks" aria-hidden="true"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="logo"><span class="dot">T</span><div>TradeLine<small>Field Service CRM</small></div></div>
+      <nav class="toplinks">
+        <a href="#work" class="hideS">How it works</a>
+        <a href="#features" class="hideS">Features</a>
+        <a href="#plans" class="hideS">Plans</a>
+        <a class="btn small" href="app.html">Open the demo</a>
+      </nav>
+    </div>
+
+    <div class="herogrid">
+      <div>
+        <div class="eyebrow rv" style="--d:0">Working demo · No signup · Nothing to install</div>
+        <h1 class="rv" style="--d:1">From first call<br>to <span class="under">final invoice.</span></h1>
+        <p class="sub rv" style="--d:2">TradeLine runs the whole job — <b>requests, quotes, scheduling, invoicing, payments</b> and real <b>job costing</b> — in one place. Built the way a contractor actually works, not the way software people think you work.</p>
+        <div class="ctarow rv" style="--d:3">
+          <a class="btn" href="app.html">▶ Try the live demo</a>
+          <a class="btn ghosty" href="#work">See how it works</a>
+        </div>
+        <div class="ctanote rv" style="--d:4">Loads a sample company you can poke at — or start your own from a blank slate. Data stays in your browser.</div>
+        <div class="trades rv" style="--d:5">Built for the trades — <span>Painting · Drywall · HVAC · Plumbing · Electrical · Landscaping · GC · Handyman</span></div>
+      </div>
+
+      <div class="mockwrap rv" style="--d:3">
+        <div class="mock" aria-hidden="true">
+          <div class="mtop"><i></i><i></i><i></i>&nbsp;TradeLine — Dashboard</div>
+          <div class="mbody">
+            <div class="mstats">
+              <div class="mstat"><div class="l">New requests</div><div class="v">3</div></div>
+              <div class="mstat"><div class="l">Quotes out</div><div class="v blue">$18,940</div></div>
+              <div class="mstat"><div class="l">Outstanding</div><div class="v">$3,745</div></div>
+            </div>
+            <div class="mrow"><span><b>Level 5 finish — Building C</b></span><span class="pill pb">Scheduled</span></div>
+            <div class="mrow"><span><b>Hallway patch &amp; repaint</b></span><span class="pill pg">Complete</span></div>
+            <div class="mrow"><span><b>Elena Marsh — exterior repaint</b></span><span class="pill pa">New request</span></div>
+            <div class="mrow"><span><b>Invoice #I1 — Harborview</b></span><span class="pill pa">Due in 12 days</span></div>
+          </div>
+        </div>
+        <div class="stamp">✓ Paid in full</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="flowband" id="work">
+  <div class="wrap">
+    <div class="flow">
+      <div class="fstep rv"><div class="n">STEP 01</div><h3>Request</h3><p>Calls, website forms and booked leads land in one inbox.</p></div>
+      <div class="fstep rv"><div class="n">STEP 02</div><h3>Quote</h3><p>Line items in minutes. The client approves from their phone.</p></div>
+      <div class="fstep rv"><div class="n">STEP 03</div><h3>Job</h3><p>On the schedule with a crew and an on-site checklist.</p></div>
+      <div class="fstep rv"><div class="n">STEP 04</div><h3>Invoice</h3><p>One click builds the invoice straight from the finished job.</p></div>
+      <div class="fstep rv"><div class="n">STEP 05</div><h3>Paid</h3><p>Card, ACH or tap-to-pay — and reminders chase the slow ones.</p></div>
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="eyebrow">What's inside</div>
+      <h2>Everything between the handshake and the deposit slip</h2>
+      <p>Every feature exists to answer one question: did this job make money?</p>
+    </div>
+    <div class="feats">
+      <div class="feat rv"><div class="fno">01 / SALES</div><h3>Quotes that close</h3><p>Build line-item quotes in minutes, send them, and let clients approve with one tap from the portal you text them.</p></div>
+      <div class="feat rv"><div class="fno">02 / FIELD</div><h3>Schedule &amp; crew</h3><p>Jobs on a board with dates, crews and on-site checklists — so the crew knows the plan without calling you.</p></div>
+      <div class="feat rv"><div class="fno">03 / BILLING</div><h3>Invoice from the job</h3><p>The moment a job's marked complete, the invoice is one click — built from the quote, ready to send.</p></div>
+      <div class="feat rv"><div class="fno">04 / MONEY</div><h3>Real job costing</h3><p>Quoted vs invoiced vs actual labor and materials, per job. Know your margin while you can still do something about it.</p></div>
+      <div class="feat rv"><div class="tag">Plus</div><div class="fno">05 / FRONT DESK</div><h3>AI receptionist</h3><p>Answers the calls you miss from the ladder, after hours, mid-spray — and books them straight into Requests.</p></div>
+      <div class="feat rv"><div class="tag">Grow+</div><div class="fno">06 / AUTOPILOT</div><h3>Automations</h3><p>Quote follow-ups, invoice reminders, review requests, rebook nudges. Set once, collect forever.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="plansband" id="plans">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="eyebrow" style="color:var(--steel-glow)">Plans</div>
+      <h2>Priced like the market, packaged like it should be</h2>
+      <p>Explore all four tiers in the demo — locked features show exactly what upgrading unlocks.</p>
+    </div>
+    <div class="plans">
+      <div class="plan rv"><h4>Core</h4><div class="pr">$49<small>/mo · 1 user</small></div><ul><li>Quotes, jobs &amp; invoicing</li><li>Online payments</li><li>Client manager</li><li>Online requests</li></ul></div>
+      <div class="plan rv"><h4>Connect</h4><div class="pr">$139<small>/mo · 5 users</small></div><ul><li>Everything in Core</li><li>QuickBooks sync</li><li>Time &amp; expense tracking</li><li>Automated reminders</li></ul></div>
+      <div class="plan rv"><h4>Grow</h4><div class="pr">$199<small>/mo · 10 users</small></div><ul><li>Everything in Connect</li><li>Job costing &amp; reports</li><li>Custom automations</li><li>Two-way SMS</li></ul></div>
+      <div class="plan hot rv"><h4>Plus</h4><div class="pr">$499<small>/mo · 15 users</small></div><ul><li>Everything in Grow</li><li>Sales pipeline</li><li>Marketing suite</li><li>AI receptionist</li></ul></div>
+    </div>
+    <div class="plansnote">// Demo pricing — mirrors current market rates for field-service CRMs.</div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="rv">
+    <h2>Kick the tires. Break nothing.</h2>
+    <p>The demo is the full product with a sample finishing company loaded — quotes, jobs, money and all. Or start blank and set up your own shop. Either way it's your browser, your data, zero risk.</p>
+    <a class="btn" href="app.html">▶ Open the live demo</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:19px"><span class="dot" style="width:26px;height:26px;font-size:15px">T</span><div>TradeLine</div></div>
+    <div class="foot-mono">A working product demo · All data stays in your browser · <a href="app.html">Open the demo →</a></div>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
