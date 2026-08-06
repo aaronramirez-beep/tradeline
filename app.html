@@ -1037,7 +1037,7 @@ function renderItems(){document.getElementById('q_items').innerHTML=draftItems.m
   const tot=draftItems.reduce((s,i)=>s+(+i.q||0)*(+i.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=money(tot);}
 function addItem(){draftItems.push({d:'',q:1,p:0});renderItems();}
 function rmItem(i){draftItems.splice(i,1);renderItems();}
-function upd(i,k,v){draftItems[i][k]=(k==='d')?v:(+v||0);if(k!=='d')renderItems();else{const tot=draftItems.reduce((s,x)=>s+(+x.q||0)*(+x.p||0),0);document.getElementById('q_total').textContent=money(tot);}}
+function upd(i,k,v){draftItems[i][k]=(k==='d')?v:(+v||0);const tot=draftItems.reduce((s,x)=>s+(+x.q||0)*(+x.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=money(tot);}
 function saveQuote(status){const title=document.getElementById('q_title').value.trim();if(!title){toast('Add a job title');return;}
   const items=draftItems.filter(i=>i.d.trim()).map(i=>({d:i.d,q:+i.q||0,p:+i.p||0}));if(!items.length){toast('Add at least one line item');return;}
   const q={id:uid('q'),clientId:document.getElementById('q_client').value,title,status,date:document.getElementById('q_date').value||today,items};
