@@ -1,41 +1,168 @@
 /* ============================================================
-   TradeLine — shared brand system
+   Tradeline — shared brand system
    Single source of truth for type + color across the whole product.
    Linked by index.html (landing) and app.html (demo).
    Change the look here once; both pages update.
+
+   Direction 03 — Signal.  Brand Bible, Foundation v1.0.
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root{
-  /* --- brand color --- */
-  --tl-navy:#0f1e2e;
-  --tl-navy-2:#16293e;
-  --tl-steel:#2f6fa8;
-  --tl-steel-l:#5b96c9;
-  --tl-steel-glow:#7db4e0;
-  --tl-paper:#f2f0ea;
-  --tl-ink:#1c2530;
-  --tl-muted:#5d6b7a;
-  --tl-ok:#3fae7c;
-  --tl-amber:#e0a63a;
+  /* ---------- CORE PALETTE (Bible §11) ----------
+     A sophisticated neutral foundation and ONE high-recognition accent.
+     Roughly 90% neutral, 10% accent on any screen.
+     Never two accents competing. Never accent as a large background fill. */
+  --tl-navy:#0A0F1A;        /* Deep Navy   — page ground            */
+  --tl-midnight:#111827;    /* Midnight    — raised panels          */
+  --tl-graphite:#1F2937;    /* Graphite    — controls, inputs       */
+  --tl-light:#F3F5F7;       /* Light       — primary text on dark   */
+  --tl-signal:#00D2A6;      /* Signal      — the one accent         */
 
-  /* --- brand type --- */
-  --tl-display:'Big Shoulders Display', 'Arial Narrow', sans-serif;
-  --tl-body:'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --tl-mono:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  /* Accent support — derived, never introduced as a second accent */
+  --tl-signal-d:#00B792;    /* pressed / hover on filled accent     */
+  --tl-signal-t:rgba(0,210,166,.12);  /* tinted pill, active states */
+  --tl-signal-t2:rgba(0,210,166,.22); /* tinted pill border         */
+
+  /* ---------- SURFACES (Bible §21) ----------
+     Elevation comes from value, not shadow. */
+  --tl-surface:#0A0F1A;     /* page                                 */
+  --tl-card:#0E1521;        /* card                                 */
+  --tl-card-2:#121A28;      /* card raised / table header           */
+  --tl-hairline:#1B2635;    /* the only border value                */
+  --tl-hairline-2:#243044;  /* hover / emphasis border              */
+
+  /* ---------- TEXT ---------- */
+  --tl-ink:#F3F5F7;         /* loudest — numbers, titles            */
+  --tl-ink-2:#C3CCD9;       /* body                                 */
+  --tl-muted:#8494A8;       /* labels, supporting, default icon     */
+  --tl-faint:#76839A;       /* quietest — timestamps, placeholders.
+                               Held at 4.6:1 on Deep Navy so that
+                               "quietest" never means "unreadable".  */
+
+  /* ---------- FUNCTIONAL STATUS (Bible §20) ----------
+     Status color is functional, never decorative.
+     Green means money in; amber means waiting; red means act today. */
+  --tl-ok:#00D2A6;
+  --tl-ok-bg:rgba(0,210,166,.12);
+  --tl-amber:#E8B23C;
+  --tl-amber-bg:rgba(232,178,60,.13);
+  --tl-red:#F2555A;
+  --tl-red-bg:rgba(242,85,90,.13);
+  --tl-info:#6EA8FE;
+  --tl-info-bg:rgba(110,168,254,.13);
+  --tl-neutral:#8494A8;
+  --tl-neutral-bg:rgba(132,148,168,.13);
+
+  /* ---------- PRO (Bible §22) ----------
+     Signalled with restraint: a warm champagne rule and badge.
+     No new palette, no gold gradients, no second accent inside the product. */
+  --tl-pro:#D8C08A;
+  --tl-pro-bg:rgba(216,192,138,.12);
+
+  /* ---------- TYPE (Bible §12) ----------
+     Plus Jakarta Sans. Modern. Technical. Approachable.
+     No stencil fonts. No construction fonts. No futurism.
+     Calm and expensive — with space to breathe. */
+  --tl-display:'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tl-body:'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tl-mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* ---------- RHYTHM (Bible §21) ----------
+     8px spacing scale, 12px card radius, 26px page gutter. */
+  --tl-r-card:12px;
+  --tl-r-ctl:10px;          /* 10px radius everywhere on controls   */
+  --tl-r-pill:999px;
+  --tl-gutter:26px;
+  --tl-tap:44px;            /* 44px minimum control height          */
 }
 
-/* Shared primary button — chunky, stamped, industrial.
-   Use class "tl-btn" anywhere (landing, future pages, emails). */
+/* ============================================================
+   THE MARK
+   TRADE | LINE. A continuous line forming a T. Single weight,
+   open counters, no fill — the mark is a route, not a letterform.
+   Built on an 84-unit square, stroke 3u, rounded caps at 7u radius.
+   ============================================================ */
+.tl-mark{ display:block; overflow:visible; }
+.tl-mark path{
+  fill:none;
+  stroke:currentColor;
+  stroke-width:3.5;          /* ~3u on the 84-unit grid, for 48px and up */
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+/* The stroke steps up as the mark shrinks so the counters stay open —
+   the T must never fill in. Pair the class to the rendered size. */
+.tl-mark.is-md path{ stroke-width:5;   }   /* 24–48px */
+.tl-mark.is-sm path{ stroke-width:6.5; }   /* 16–24px */
+
+/* The lockup: mark, hairline divider, wordmark, CRM descriptor.
+   You don't use Tradeline CRM. You use Tradeline. */
+.tl-lockup{ display:inline-flex; align-items:center; gap:14px; color:var(--tl-signal); }
+.tl-lockup .tl-rule{ width:1px; align-self:stretch; background:var(--tl-hairline-2); }
+.tl-lockup .tl-word{
+  font-family:var(--tl-display); font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--tl-light); line-height:1;
+}
+.tl-lockup .tl-desc{
+  display:block; font-family:var(--tl-mono); font-weight:500;
+  font-size:.42em; letter-spacing:.34em; color:var(--tl-signal);
+  margin-top:.34em; text-transform:uppercase;
+}
+
+/* ============================================================
+   SHARED PRIMARY BUTTON
+   44px minimum height. 10px radius. One accent button per view —
+   the next action. Powerful underneath, simple on top.
+   Use class "tl-btn" anywhere (landing, future pages, emails).
+   ============================================================ */
 .tl-btn{
-  display:inline-flex; align-items:center; gap:10px;
-  background:var(--tl-steel); color:#fff; text-decoration:none;
-  font-family:var(--tl-display); font-weight:700; font-size:19px;
-  letter-spacing:.06em; text-transform:uppercase;
-  padding:15px 28px; border:none; cursor:pointer; border-radius:3px;
-  box-shadow:4px 4px 0 rgba(0,0,0,.35);
-  transition:transform .12s, box-shadow .12s, background .12s;
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  min-height:var(--tl-tap);
+  background:var(--tl-signal); color:#04231C; text-decoration:none;
+  font-family:var(--tl-body); font-weight:700; font-size:15px;
+  letter-spacing:.01em;
+  padding:0 24px; border:none; cursor:pointer; border-radius:var(--tl-r-ctl);
+  transition:background .14s ease, transform .14s ease;
 }
-.tl-btn:hover{ transform:translate(-2px,-2px); box-shadow:7px 7px 0 rgba(0,0,0,.35); background:var(--tl-steel-l); }
-.tl-btn:active{ transform:translate(1px,1px); box-shadow:2px 2px 0 rgba(0,0,0,.35); }
-@media (prefers-reduced-motion:reduce){ .tl-btn{ transition:none; } }
+.tl-btn:hover{ background:var(--tl-signal-d); }
+.tl-btn:active{ transform:translateY(1px); }
+.tl-btn:focus-visible{ outline:2px solid var(--tl-signal); outline-offset:3px; }
+
+.tl-btn.is-secondary{
+  background:transparent; color:var(--tl-light);
+  border:1px solid var(--tl-hairline-2);
+}
+.tl-btn.is-secondary:hover{ background:var(--tl-graphite); border-color:#31405A; }
+
+.tl-btn.is-ghost{
+  background:transparent; color:var(--tl-muted); padding:0 12px;
+}
+.tl-btn.is-ghost:hover{ color:var(--tl-light); background:rgba(255,255,255,.04); }
+
+@media (prefers-reduced-motion:reduce){
+  .tl-btn{ transition:none; }
+  .tl-btn:active{ transform:none; }
+}
+
+/* ============================================================
+   ICON SYSTEM (Bible §19)
+   24px grid · 1.75px stroke · round caps and joins · outline only,
+   never filled · one concept per icon. Icons never carry brand color
+   unless they are the active state.
+   ============================================================ */
+.tl-ico{
+  width:20px; height:20px; flex-shrink:0;
+  fill:none; stroke:currentColor; stroke-width:1.75;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+
+/* ============================================================
+   TYPE HELPERS
+   Numbers loudest, labels quietest, one accent action.
+   ============================================================ */
+.tl-label{
+  font-family:var(--tl-mono); font-weight:500; font-size:10.5px;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--tl-muted);
+}
+.tl-data{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; font-weight:600; }

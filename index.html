@@ -3,154 +3,187 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TradeLine — From first call to final invoice</title>
-<meta name="description" content="TradeLine is a field-service CRM built for the trades — requests, quotes, scheduling, invoicing, payments and real job costing in one place. Try the working demo, no signup.">
-<meta property="og:title" content="TradeLine — Field Service CRM for the trades">
-<meta property="og:description" content="From first call to final invoice. Try the working demo — no signup, nothing to install.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232f6fa8'/><text x='50' y='72' font-size='62' font-weight='bold' font-family='Arial' fill='white' text-anchor='middle'>T</text></svg>">
+<title>Tradeline — The operating system for the trades</title>
+<meta name="description" content="Tradeline brings your customers, sales, jobs, invoices, payments and growth into one connected system built for contractors. Try the working demo, no signup.">
+<meta property="og:title" content="Tradeline — The operating system for the trades">
+<meta property="og:description" content="One business. One system. One line. Try the working demo — no signup, nothing to install.">
+<meta name="theme-color" content="#0A0F1A">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 84'%3E%3Crect width='84' height='84' rx='19' fill='%230E1521'/%3E%3Cg fill='none' stroke='%2300D2A6' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="brand.css">
 <style>
+  /* ============================================================
+     Tradeline — landing
+     Palette, type and rhythm inherited from brand.css.
+     Direction 03 / Signal. Serious technology with a human face.
+     ============================================================ */
   :root{
-    --navy:#0f1e2e; --navy-2:#16293e; --steel:#2f6fa8; --steel-l:#5b96c9; --steel-glow:#7db4e0;
-    --paper:#f2f0ea; --ink:#1c2530; --muted:#5d6b7a; --line:#d9d4c8; --line-navy:#24405c;
-    --amber:#e0a63a; --ok:#3fae7c;
     --disp:var(--tl-display); --body:var(--tl-body); --mono:var(--tl-mono);
+    --navy:var(--tl-navy); --card:var(--tl-card); --card-2:var(--tl-card-2);
+    --line:var(--tl-hairline); --line-2:var(--tl-hairline-2);
+    --ink:var(--tl-ink); --ink-2:var(--tl-ink-2);
+    --muted:var(--tl-muted); --faint:var(--tl-faint);
+    --signal:var(--tl-signal); --pro:var(--tl-pro);
+    --on-accent:#04231C;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{font-family:var(--body);color:var(--ink);background:var(--paper);line-height:1.55;font-size:16.5px}
-  ::selection{background:var(--steel);color:#fff}
+  html{scroll-behavior:smooth;color-scheme:dark}
+  body{font-family:var(--body);color:var(--ink-2);background:var(--navy);line-height:1.6;font-size:16.5px;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:rgba(0,210,166,.22);color:var(--ink)}
+  img,svg{display:block}
 
-  /* measurement-tick strip, like a tape measure */
-  .ticks{height:14px;background:
-    repeating-linear-gradient(90deg, var(--steel) 0 2px, transparent 2px 24px),
-    repeating-linear-gradient(90deg, var(--line-navy) 0 1px, transparent 1px 8px);
-    background-color:var(--navy);border-bottom:3px solid var(--steel)}
+  /* THE LINE.
+     One continuous accent rule across the top of the page.
+     Tradeline is the line running through the entire business —
+     it earns the top 2px of every page and nothing else. */
+  .theline{height:2px;background:var(--signal)}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 26px;position:relative}
 
   /* ============ HERO ============ */
-  .hero{background:var(--navy);color:#e7eef5;position:relative;overflow:hidden}
-  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;
-    background:
-      linear-gradient(transparent 31px, rgba(91,150,201,.07) 32px),
-      linear-gradient(90deg, transparent 31px, rgba(91,150,201,.07) 32px);
-    background-size:32px 32px}
-  .hero::after{content:'';position:absolute;right:-180px;top:-180px;width:560px;height:560px;border-radius:50%;
-    background:radial-gradient(circle, rgba(47,111,168,.28), transparent 65%);pointer-events:none}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 26px;position:relative}
-  .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
-  .logo{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-weight:800;font-size:25px;letter-spacing:.5px;color:#fff}
-  .logo .dot{width:32px;height:32px;border-radius:8px;background:var(--steel);display:inline-flex;align-items:center;justify-content:center;font-size:19px}
-  .logo small{font-family:var(--mono);font-weight:500;font-size:10px;color:#7f9ab5;letter-spacing:.16em;display:block;text-transform:uppercase}
-  .toplinks{display:flex;gap:26px;align-items:center;font-size:14.5px}
-  .toplinks a{color:#b9cbde;text-decoration:none;font-weight:500}
-  .toplinks a:hover{color:#fff}
-  .btn{display:inline-flex;align-items:center;gap:10px;background:var(--steel);color:#fff;text-decoration:none;
-    font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.06em;text-transform:uppercase;
-    padding:15px 28px;border:none;cursor:pointer;position:relative;
-    box-shadow:4px 4px 0 rgba(0,0,0,.35);transition:transform .12s,box-shadow .12s;border-radius:3px}
-  .btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 rgba(0,0,0,.35);background:var(--steel-l)}
-  .btn:active{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
-  .btn.small{font-size:15px;padding:10px 18px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
-  .btn.ghosty{background:transparent;border:2px solid var(--line-navy);color:#b9cbde;box-shadow:none}
-  .btn.ghosty:hover{border-color:var(--steel-l);color:#fff;background:rgba(47,111,168,.12)}
+  .hero{background:var(--navy);color:var(--ink);position:relative;overflow:hidden}
+  /* Atmosphere, not blueprint. A single soft field of the accent, far below
+     the 10% threshold, so the page reads as depth rather than decoration. */
+  .hero::after{content:'';position:absolute;right:-260px;top:-300px;width:820px;height:820px;border-radius:50%;
+    background:radial-gradient(circle, rgba(0,210,166,.10), rgba(0,210,166,.03) 42%, transparent 68%);
+    pointer-events:none}
 
-  .herogrid{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center;padding:64px 0 88px}
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--steel-glow);
-    display:inline-flex;align-items:center;gap:10px;margin-bottom:20px}
-  .eyebrow::before{content:'';width:34px;height:2px;background:var(--steel)}
-  h1{font-family:var(--disp);font-weight:800;font-size:clamp(52px,7.5vw,92px);line-height:.95;letter-spacing:.01em;
-    text-transform:uppercase;color:#fff;text-wrap:balance}
-  h1 .under{color:var(--steel-glow);position:relative;white-space:nowrap}
-  h1 .under::after{content:'';position:absolute;left:0;right:0;bottom:6px;height:5px;background:var(--steel);z-index:-1}
-  .sub{font-size:19px;color:#aebfd0;max-width:34em;margin:24px 0 34px}
-  .sub b{color:#e7eef5}
-  .ctarow{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
-  .ctanote{font-family:var(--mono);font-size:12px;color:#7f9ab5;margin-top:16px;letter-spacing:.04em}
-  .trades{margin-top:40px;padding-top:22px;border-top:1px dashed var(--line-navy);font-family:var(--mono);
-    font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:#6f8aa5;line-height:2.2}
-  .trades span{color:#9db4ca}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 0;
+    border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:13px;text-decoration:none}
+  .logo .tl-mark{width:26px;height:26px;color:var(--signal)}
+  .logo .rule{width:1px;height:26px;background:var(--line-2)}
+  .logo .word{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--ink);line-height:1}
+  .logo .desc{display:block;font-family:var(--mono);font-weight:500;font-size:8.5px;letter-spacing:.4em;
+    color:var(--signal);margin-top:5px;text-transform:uppercase}
+  .toplinks{display:flex;gap:30px;align-items:center;font-size:14.5px}
+  .toplinks a:not(.btn){color:var(--muted);text-decoration:none;font-weight:500;transition:color .14s}
+  .toplinks a:not(.btn):hover{color:var(--ink)}
 
-  /* mock dashboard card */
-  .mock{background:#fff;border-radius:10px;box-shadow:0 30px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06);
-    overflow:hidden;font-size:12px;color:var(--ink);transform:rotate(1.2deg)}
-  .mock .mtop{background:var(--navy-2);color:#cfdeed;padding:10px 14px;display:flex;gap:7px;align-items:center;
-    font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
-  .mock .mtop i{width:9px;height:9px;border-radius:50%;background:#39567a;display:inline-block}
-  .mock .mtop i:first-child{background:var(--steel-l)}
-  .mock .mbody{padding:16px}
-  .mstats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px}
-  .mstat{border:1px solid #e4e8ec;border-radius:7px;padding:9px 11px}
-  .mstat .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#6b7683}
-  .mstat .v{font-family:var(--disp);font-weight:800;font-size:21px;margin-top:2px}
-  .mstat .v.blue{color:var(--steel)}
-  .mrow{display:flex;justify-content:space-between;align-items:center;padding:8px 3px;border-bottom:1px solid #eef0f2;font-size:11.5px}
-  .mrow:last-child{border-bottom:none}
-  .mrow .pill{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;padding:3px 8px;border-radius:12px;font-weight:600;text-transform:uppercase}
-  .pg{background:#d9efec;color:#0f766e}.pb{background:#e8effd;color:#2563eb}.pa{background:#fdf3d9;color:#a07508}
-  .stamp{position:absolute;bottom:-16px;right:18px;transform:rotate(-7deg);font-family:var(--mono);font-weight:600;
-    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok);border:2px solid var(--ok);
-    padding:5px 12px;border-radius:4px;background:rgba(255,255,255,.92)}
+  /* buttons — 44px+ target, 10px radius, one accent action per view */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;
+    background:var(--signal);color:var(--on-accent);text-decoration:none;
+    font-family:var(--body);font-weight:700;font-size:15.5px;letter-spacing:.01em;
+    padding:0 26px;border:none;cursor:pointer;border-radius:var(--tl-r-ctl);
+    transition:background .14s,transform .14s}
+  .btn:hover{background:var(--tl-signal-d)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+  .btn.small{min-height:40px;font-size:14px;padding:0 18px}
+  .btn.ghosty{background:transparent;border:1px solid var(--line-2);color:var(--ink)}
+  .btn.ghosty:hover{background:var(--tl-graphite);border-color:#31405A}
+
+  .herogrid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding:88px 0 104px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--signal);
+    display:inline-flex;align-items:center;gap:12px;margin-bottom:26px;font-weight:500}
+  .eyebrow::before{content:'';width:30px;height:1px;background:var(--signal)}
+  h1{font-family:var(--disp);font-weight:700;font-size:clamp(40px,5.2vw,62px);line-height:1.04;
+    letter-spacing:-.025em;color:var(--ink);text-wrap:balance}
+  /* the accent phrase carries the line motif — a hairline, not a highlighter */
+  h1 .under{color:var(--signal);position:relative;white-space:nowrap}
+  h1 .under::after{content:'';position:absolute;left:0;right:0;bottom:-.06em;height:2px;background:var(--signal);opacity:.5}
+  .sub{font-size:18.5px;color:var(--ink-2);max-width:33em;margin:28px 0 36px;line-height:1.65}
+  .sub b{color:var(--ink);font-weight:600}
+  .ctarow{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .ctanote{font-size:13.5px;color:var(--muted);margin-top:20px;max-width:34em}
+  .trades{margin-top:44px;padding-top:26px;border-top:1px solid var(--line);font-family:var(--mono);
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);line-height:2.3;font-weight:500}
+  .trades span{color:var(--muted)}
+
+  /* mock dashboard — mirrors the real product surface */
   .mockwrap{position:relative}
+  .mock{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 40px 90px rgba(0,0,0,.55);overflow:hidden;font-size:12px;color:var(--ink-2)}
+  .mock .mtop{background:var(--card-2);color:var(--muted);padding:12px 16px;display:flex;gap:7px;align-items:center;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    border-bottom:1px solid var(--line);font-weight:500}
+  .mock .mtop i{width:8px;height:8px;border-radius:50%;background:var(--line-2);display:inline-block}
+  .mock .mtop i:first-child{background:var(--signal)}
+  .mock .mbody{padding:18px}
+  .mstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+  .mstat{border:1px solid var(--line);border-radius:10px;padding:12px 13px;background:rgba(255,255,255,.02)}
+  .mstat .l{font-family:var(--mono);font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .mstat .v{font-family:var(--disp);font-weight:700;font-size:21px;margin-top:6px;color:var(--ink);
+    letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .mstat .v.blue{color:var(--signal)}
+  .mrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 3px;
+    border-bottom:1px solid var(--line);font-size:11.5px}
+  .mrow:last-child{border-bottom:none}
+  .mrow b{color:var(--ink);font-weight:600}
+  .mrow .pill{font-size:9px;letter-spacing:.02em;padding:4px 9px;border-radius:999px;font-weight:600;
+    white-space:nowrap;border:1px solid transparent}
+  .pg{background:var(--tl-ok-bg);color:var(--tl-ok);border-color:rgba(0,210,166,.26)}
+  .pb{background:var(--tl-info-bg);color:var(--tl-info);border-color:rgba(110,168,254,.28)}
+  .pa{background:var(--tl-amber-bg);color:var(--tl-amber);border-color:rgba(232,178,60,.28)}
+  /* status, not a rubber stamp */
+  .stamp{position:absolute;bottom:-14px;right:20px;font-family:var(--mono);font-weight:500;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--signal);
+    border:1px solid rgba(0,210,166,.3);padding:8px 14px;border-radius:999px;background:var(--card-2)}
 
   /* ============ FLOW ============ */
-  .flowband{background:var(--ink);color:#dfe6ec;border-top:3px solid var(--steel)}
-  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;padding:0}
-  .fstep{padding:26px 22px 30px;border-right:1px dashed #35414e;position:relative}
+  .flowband{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0}
+  .fstep{padding:34px 24px 38px;border-right:1px solid var(--line);position:relative}
   .fstep:last-child{border-right:none}
-  .fstep .n{font-family:var(--mono);font-size:11px;color:var(--steel-glow);letter-spacing:.18em}
-  .fstep h3{font-family:var(--disp);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 4px;color:#fff}
-  .fstep p{font-size:13px;color:#93a1af}
-  .fstep::after{content:'→';position:absolute;right:-9px;top:32px;color:var(--steel);font-size:18px;background:var(--ink);z-index:2}
-  .fstep:last-child::after{content:''}
+  .fstep .n{font-family:var(--mono);font-size:10px;color:var(--signal);letter-spacing:.22em;font-weight:500}
+  .fstep h3{font-family:var(--disp);font-weight:600;font-size:20px;letter-spacing:-.01em;margin:12px 0 8px;color:var(--ink)}
+  .fstep p{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .fstep::after{content:'';position:absolute;right:-4px;top:44px;width:7px;height:7px;
+    border-top:1px solid var(--line-2);border-right:1px solid var(--line-2);transform:rotate(45deg);
+    background:var(--card);z-index:2}
+  .fstep:last-child::after{content:none}
 
   /* ============ SECTIONS ============ */
-  section{padding:88px 0}
-  .sechead{margin-bottom:48px;max-width:640px}
-  .sechead .eyebrow{color:var(--steel)}
-  .sechead .eyebrow::before{background:var(--steel)}
-  h2{font-family:var(--disp);font-weight:800;font-size:clamp(36px,4.5vw,54px);line-height:1;text-transform:uppercase;color:var(--ink);text-wrap:balance}
-  .sechead p{color:var(--muted);margin-top:14px;font-size:17.5px}
+  section{padding:104px 0}
+  .sechead{margin-bottom:56px;max-width:660px}
+  h2{font-family:var(--disp);font-weight:700;font-size:clamp(30px,3.8vw,44px);line-height:1.1;
+    letter-spacing:-.025em;color:var(--ink);text-wrap:balance}
+  .sechead p{color:var(--muted);margin-top:18px;font-size:17px;line-height:1.6}
 
-  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-  .feat{background:var(--paper);padding:30px 26px;position:relative;transition:background .15s}
-  .feat:hover{background:#fff}
-  .feat .fno{font-family:var(--mono);font-size:10.5px;color:var(--steel);letter-spacing:.16em}
-  .feat h3{font-family:var(--disp);font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.03em;margin:10px 0 8px}
-  .feat p{font-size:14.5px;color:var(--muted)}
-  .feat .tag{position:absolute;top:26px;right:22px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
-    text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);padding:2px 7px;border-radius:3px}
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:var(--tl-r-card);overflow:hidden}
+  .feat{background:var(--card);padding:34px 28px;position:relative;transition:background .15s}
+  .feat:hover{background:var(--card-2)}
+  .feat .fno{font-family:var(--mono);font-size:10px;color:var(--signal);letter-spacing:.2em;font-weight:500}
+  .feat h3{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:-.012em;margin:14px 0 10px;color:var(--ink)}
+  .feat p{font-size:14.5px;color:var(--muted);line-height:1.62}
+  /* tier tags take the champagne, never a second accent */
+  .feat .tag{position:absolute;top:30px;right:24px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--pro);border:1px solid rgba(216,192,138,.34);padding:4px 9px;
+    border-radius:999px;font-weight:500}
 
   /* plans */
-  .plansband{background:var(--navy);color:#e7eef5;position:relative;overflow:hidden}
-  .plansband::before{content:'';position:absolute;inset:0;
-    background:linear-gradient(transparent 31px, rgba(91,150,201,.06) 32px),linear-gradient(90deg, transparent 31px, rgba(91,150,201,.06) 32px);
-    background-size:32px 32px;pointer-events:none}
-  .plansband h2{color:#fff}
-  .plansband .sechead p{color:#aebfd0}
+  .plansband{background:var(--navy);position:relative;border-top:1px solid var(--line)}
   .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .plan{border:1px solid var(--line-navy);border-radius:8px;padding:24px 22px;background:rgba(22,41,62,.6);position:relative}
-  .plan.hot{border-color:var(--steel);background:rgba(47,111,168,.16)}
-  .plan.hot::before{content:'MOST COMPLETE';position:absolute;top:-9px;left:20px;font-family:var(--mono);font-size:9px;
-    letter-spacing:.16em;background:var(--steel);color:#fff;padding:2px 9px;border-radius:3px}
-  .plan h4{font-family:var(--disp);font-weight:700;font-size:23px;text-transform:uppercase;letter-spacing:.05em}
-  .plan .pr{font-family:var(--disp);font-weight:800;font-size:38px;margin:10px 0 2px;color:#fff}
-  .plan .pr small{font-family:var(--body);font-weight:400;font-size:13px;color:#7f9ab5}
-  .plan ul{list-style:none;margin-top:14px}
-  .plan li{font-size:13.5px;padding:4px 0;color:#b9cbde}
-  .plan li::before{content:'▸ ';color:var(--steel-glow)}
-  .plansnote{font-family:var(--mono);font-size:11px;color:#7f9ab5;margin-top:22px;letter-spacing:.04em}
+  .plan{border:1px solid var(--line);border-radius:var(--tl-r-card);padding:28px 24px;background:var(--card);position:relative}
+  .plan.hot{border-color:rgba(0,210,166,.28);
+    background:linear-gradient(rgba(0,210,166,.06),rgba(0,210,166,.06)),var(--card)}
+  .plan.hot::before{content:'MOST COMPLETE';position:absolute;top:-11px;left:22px;font-family:var(--mono);font-size:8.5px;
+    letter-spacing:.18em;background:var(--signal);color:var(--on-accent);padding:4px 10px;border-radius:999px;font-weight:600}
+  .plan h4{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--ink)}
+  .plan .pr{font-family:var(--disp);font-weight:700;font-size:36px;margin:14px 0 2px;color:var(--ink);
+    letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .plan .pr small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0}
+  .plan ul{list-style:none;margin-top:18px}
+  .plan li{font-size:13.5px;padding:6px 0;color:var(--ink-2);display:flex;gap:10px;align-items:flex-start}
+  .plan li::before{content:'';flex-shrink:0;width:6px;height:6px;margin-top:.55em;border-radius:50%;
+    background:var(--signal);opacity:.65}
+  .plansnote{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:26px;letter-spacing:.14em;
+    text-transform:uppercase;font-weight:500}
 
   /* final CTA */
-  .final{text-align:center;padding:100px 26px}
-  .final h2{margin-bottom:14px}
-  .final p{color:var(--muted);max-width:34em;margin:0 auto 34px;font-size:18px}
+  .final{text-align:center;padding:96px 26px;border-top:1px solid var(--line)}
+  .final h2{margin-bottom:18px}
+  .final p{color:var(--muted);max-width:34em;margin:0 auto 38px;font-size:17.5px;line-height:1.65}
 
-  footer{background:var(--ink);color:#93a1af;padding:34px 0;font-size:13.5px}
+  footer{background:var(--card);color:var(--muted);padding:40px 0;font-size:13.5px;border-top:1px solid var(--line)}
   footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
-  footer a{color:#c8d2db}
-  .foot-mono{font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+  footer a{color:var(--signal);text-decoration:none;font-weight:600}
+  footer a:hover{color:var(--ink)}
+  .foot-mono{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;font-weight:500}
 
   /* reveal animation */
   .rv{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease}
@@ -159,46 +192,54 @@
   @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.btn{transition:none}}
 
   @media(max-width:920px){
-    .herogrid{grid-template-columns:1fr;padding:40px 0 64px;gap:40px}
-    .mock{transform:none;max-width:480px}
+    .herogrid{grid-template-columns:1fr;padding:56px 0 76px;gap:48px}
+    .mock{max-width:480px}
     .flow{grid-template-columns:1fr 1fr}
-    .fstep::after{content:''}
+    .fstep{border-bottom:1px solid var(--line)}
+    .fstep::after{content:none}
     .feats{grid-template-columns:1fr 1fr}
     .plans{grid-template-columns:1fr 1fr}
-    section{padding:64px 0}
+    section{padding:76px 0}
     .toplinks a.hideS{display:none}
+    .toplinks{gap:18px}
   }
   @media(max-width:560px){
     .flow{grid-template-columns:1fr}
+    .fstep:last-child{border-bottom:none}
     .feats{grid-template-columns:1fr}
     .plans{grid-template-columns:1fr}
     body{font-size:15.5px}
+    .final{padding:88px 20px}
   }
 </style>
 </head>
 <body>
 
-<div class="ticks" aria-hidden="true"></div>
+<div class="theline" aria-hidden="true"></div>
 
 <header class="hero">
   <div class="wrap">
     <div class="topbar">
-      <div class="logo"><span class="dot">T</span><div>TradeLine<small>Field Service CRM</small></div></div>
+      <a href="/" class="logo" aria-label="Tradeline CRM — home">
+        <svg class="tl-mark is-md" viewBox="0 0 84 84" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg>
+        <span class="rule" aria-hidden="true"></span>
+        <span><span class="word">Tradeline</span><span class="desc">CRM</span></span>
+      </a>
       <nav class="toplinks">
         <a href="#work" class="hideS">How it works</a>
         <a href="#features" class="hideS">Features</a>
         <a href="#plans" class="hideS">Plans</a>
-        <a class="btn small" href="app.html">Open the demo</a>
+        <a class="btn small ghosty" href="app.html">Open the demo</a>
       </nav>
     </div>
 
     <div class="herogrid">
       <div>
         <div class="eyebrow rv" style="--d:0">Working demo · No signup · Nothing to install</div>
-        <h1 class="rv" style="--d:1">From first call<br>to <span class="under">final invoice.</span></h1>
-        <p class="sub rv" style="--d:2">TradeLine runs the whole job — <b>requests, quotes, scheduling, invoicing, payments</b> and real <b>job costing</b> — in one place. Built the way a contractor actually works, not the way software people think you work.</p>
+        <h1 class="rv" style="--d:1">The operating system for <span class="under">the trades.</span></h1>
+        <p class="sub rv" style="--d:2">Tradeline brings your <b>customers, sales, jobs, invoices, payments</b> and <b>growth</b> into one connected system built for contractors. Built the way a contractor actually works, not the way software people think you work.</p>
         <div class="ctarow rv" style="--d:3">
-          <a class="btn" href="app.html">▶ Try the live demo</a>
+          <a class="btn" href="app.html">Try the live demo</a>
           <a class="btn ghosty" href="#work">See how it works</a>
         </div>
         <div class="ctanote rv" style="--d:4">Loads a sample company you can poke at — or start your own from a blank slate. Data stays in your browser.</div>
@@ -207,7 +248,7 @@
 
       <div class="mockwrap rv" style="--d:3">
         <div class="mock" aria-hidden="true">
-          <div class="mtop"><i></i><i></i><i></i>&nbsp;TradeLine — Dashboard</div>
+          <div class="mtop"><i></i><i></i><i></i>&nbsp;Tradeline — Dashboard</div>
           <div class="mbody">
             <div class="mstats">
               <div class="mstat"><div class="l">New requests</div><div class="v">3</div></div>
@@ -259,7 +300,7 @@
 <section class="plansband" id="plans">
   <div class="wrap">
     <div class="sechead rv">
-      <div class="eyebrow" style="color:var(--steel-glow)">Plans</div>
+      <div class="eyebrow">Plans</div>
       <h2>Priced like the market, packaged like it should be</h2>
       <p>Explore all four tiers in the demo — locked features show exactly what upgrading unlocks.</p>
     </div>
@@ -277,13 +318,17 @@
   <div class="rv">
     <h2>Kick the tires. Break nothing.</h2>
     <p>The demo is the full product with a sample finishing company loaded — quotes, jobs, money and all. Or start blank and set up your own shop. Either way it's your browser, your data, zero risk.</p>
-    <a class="btn" href="app.html">▶ Open the live demo</a>
+    <a class="btn" href="app.html">Open the live demo</a>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <div class="logo" style="font-size:19px"><span class="dot" style="width:26px;height:26px;font-size:15px">T</span><div>TradeLine</div></div>
+    <a href="/" class="logo" aria-label="Tradeline CRM — home">
+      <svg class="tl-mark is-sm" viewBox="0 0 84 84" style="width:21px;height:21px" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg>
+      <span class="rule" aria-hidden="true" style="height:21px"></span>
+      <span><span class="word" style="font-size:14px">Tradeline</span></span>
+    </a>
     <div class="foot-mono">A working product demo · All data stays in your browser · <a href="app.html">Open the demo →</a></div>
   </div>
 </footer>

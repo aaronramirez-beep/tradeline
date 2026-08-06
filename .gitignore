@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+._*
+
+# editors
+.vscode/
+.idea/
+
+# dependencies / build output
+node_modules/
+dist/
+.netlify/
+
+# env
+.env
+.env.*
