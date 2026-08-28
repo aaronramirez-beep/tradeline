@@ -397,44 +397,10 @@
 <div class="toast" id="toast"></div>
 <div id="launcher"></div>
 
+<script src="lib.js"></script>
 <script>
 /* ============================ CORE HELPERS ============================ */
-let UID = 1000;
-const uid = p => (p||'') + (++UID);
-const money = n => ((n||0)<0?'−':'') + '$' + Math.abs(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const iso = d => d.toISOString().slice(0,10);
-const today = iso(new Date());
-const daysFromNow = n => iso(new Date(Date.now()+n*864e5));
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const dfmt = d => { if(!d) return '—'; const [y,m,day]=d.split('-'); return `${MONTHS[+m-1]} ${+day}, ${y}`; };
-const shortDate = d => { const [y,m,day]=d.split('-'); return `${MONTHS[+m-1]} ${+day}`; };
-const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-/* ============================ PLANS & FEATURES ============================ */
-const PLANS = [
-  {key:'core',    name:'Core',    mo:49,  users:1,  feats:['Quotes, jobs & invoicing','Online payments','Client manager (CRM)','Online requests','Reporting basics']},
-  {key:'connect', name:'Connect', mo:139, users:5,  feats:['Everything in Core','QuickBooks Online sync','Time & expense tracking','Automated reminders','Job checklists']},
-  {key:'grow',    name:'Grow',    mo:199, users:10, feats:['Everything in Connect','Job costing & reports','Custom automations','Two-way SMS','Quote add-ons & upsells']},
-  {key:'plus',    name:'Plus',    mo:499, users:15, feats:['Everything in Grow','Sales Pipeline included','Marketing Suite included','AI Receptionist included','Premium support']},
-];
-const RANK = {core:0, connect:1, grow:2, plus:3};
-const ADDONS = {ai:{name:'AI Receptionist',mo:29}, marketing:{name:'Marketing Suite',mo:79}, pipeline:{name:'Sales Pipeline',mo:49}};
-
-const FEAT = {
-  timesheets:{name:'Timesheets & time tracking', min:'connect', desc:'Track crew hours against each job, feeding labor cost into job costing.'},
-  expenses:{name:'Expense tracking', min:'connect', desc:'Log material and supply spend per job from the field.'},
-  reports:{name:'Job costing & reports', min:'grow', desc:'See quoted vs invoiced vs actual labor + materials, per job, with margins.'},
-  automations:{name:'Custom automations', min:'grow', desc:'Auto quote follow-ups, invoice reminders, review requests and more.'},
-  pipeline:{name:'Sales Pipeline', min:'plus', addon:'pipeline', desc:'Kanban view of every lead from request → quoted → won.'},
-  marketing:{name:'Marketing Suite', min:'plus', addon:'marketing', desc:'Review requests, email campaigns and referral tracking.'},
-  ai:{name:'AI Receptionist', min:'plus', addon:'ai', desc:'Answers missed & after-hours calls, books requests for you.'},
-};
-function has(f){
-  const m = FEAT[f]; if(!m) return true;
-  if (RANK[state.plan] >= RANK[m.min]) return true;
-  if (m.addon && state.addons[m.addon]) return true;
-  return false;
-}
+/* UID counter lives in lib.js (global `UID`). Persist/restore on lines 1174/1183. */
 
 /* ============================ INTEGRATIONS CATALOG ============================ */
 const INTS = [
@@ -460,107 +426,8 @@ const INTS = [
     fx:()=>'✓ Review funnel armed on job completion'},
 ];
 
-/* ============================ STATE ============================ */
-function baseState(){ return {
-  plan:'core',
-  addons:{ai:false, marketing:false, pipeline:false},
-  extraUsers:0,
-  integrations:{},
-  clients:[], requests:[], quotes:[], jobs:[], invoices:[], payments:[], timesheets:[], expenses:[],
-  automations: [
-    {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:false},
-    {key:'a2', name:'Visit reminder', desc:'Text the client the day before a scheduled visit', on:false},
-    {key:'a3', name:'Invoice reminder', desc:'Nudge unpaid invoices at 3, 7 and 14 days past due', on:false},
-    {key:'a4', name:'Review request', desc:'Ask for a Google review 2 hours after a job is marked complete', on:false},
-    {key:'a5', name:'Rebook nudge', desc:'Offer repeat clients a booking link 6 months after their last job', on:false},
-  ],
-  autoLog:[], aiOn:true, aiCalls:[], reviewSent:{}, campaigns:[], aiSimIdx:0,
-}; }
-function seedState(){ const s = baseState(); Object.assign(s, {
-  clients: [
-    {id:'c1', name:'Whitmore Residence', contact:'Dana Whitmore', type:'Homeowner', phone:'(303) 555-0182', email:'dana.w@example.com', address:'418 Alpine Ct, Boulder, CO'},
-    {id:'c2', name:'Summit Ridge Builders', contact:'Miguel Alvarez', type:'General Contractor', phone:'(720) 555-0143', email:'miguel@summitridge.co', address:'2200 Commerce Pkwy, Denver, CO'},
-    {id:'c3', name:'Harborview Apartments', contact:'Priya Nair', type:'Property Mgr', phone:'(303) 555-0176', email:'pnair@harborviewpm.com', address:'88 Lakeshore Dr, Aurora, CO'},
-    {id:'c4', name:'Coleman Custom Home', contact:'Rick Coleman', type:'Homeowner', phone:'(970) 555-0119', email:'rick.coleman@example.com', address:'12 Foothill Rd, Longmont, CO'},
-  ],
-  requests: [
-    {id:'r1', name:'Elena Marsh', phone:'(303) 555-0164', service:'Exterior repaint — 2-story home', pref:daysFromNow(8), source:'Online booking', status:'new'},
-    {id:'r2', name:'Foothills Dental (office)', phone:'(720) 555-0190', service:'Reception & hallway repaint, weekend work', pref:daysFromNow(14), source:'Website form', status:'new'},
-  ],
-  quotes: [
-    {id:'q1', clientId:'c2', title:'Level 5 finish — 14 units, Building C', status:'approved', date:daysFromNow(-12),
-      items:[{d:'Level 5 drywall skim coat (sq ft)',q:9800,p:1.35},{d:'Prime & seal — new drywall',q:9800,p:0.42},{d:'Corner bead install & finish (lf)',q:640,p:2.10}]},
-    {id:'q2', clientId:'c1', title:'Interior repaint — main level + stairwell', status:'sent', date:daysFromNow(-4),
-      items:[{d:'Wall prep, patch & sand',q:1,p:850},{d:'Interior paint — walls, 2 coats (sq ft)',q:2400,p:1.15},{d:'Trim & door enamel finish (lf)',q:380,p:3.25}]},
-    {id:'q3', clientId:'c4', title:'Cabinet refinishing — kitchen + island', status:'draft', date:daysFromNow(-2),
-      items:[{d:'Degloss, sand & prep (per door/drawer)',q:34,p:28},{d:'Spray finish — 2 coats lacquer',q:34,p:62},{d:'Onsite spray booth setup',q:1,p:450}]},
-  ],
-  jobs: [
-    {id:'j1', clientId:'c2', quoteId:'q1', title:'Level 5 finish — 14 units, Building C', date:daysFromNow(2), crew:'Crew A — Luis, Marco', status:'scheduled',
-      checklist:[{t:'Confirm units are drywalled & ready',done:true},{t:'Stage skim coat materials',done:false},{t:'Mask & protect finished floors',done:false},{t:'Skim coat + sand',done:false},{t:'Prime & final walk',done:false}]},
-    {id:'j2', clientId:'c3', quoteId:null, title:'Common-hallway patch & repaint — floors 2-3', date:daysFromNow(-3), crew:'Crew B — Tanya, Deshawn', status:'complete',
-      checklist:[{t:'Patch drywall dings',done:true},{t:'Sand & spot prime',done:true},{t:'Repaint hallways, 2 coats',done:true},{t:'Touch-up & final walk',done:true}]},
-  ],
-  invoices: [
-    {id:'i1', clientId:'c3', jobId:'j2', title:'Common-hallway patch & repaint — floors 2-3', status:'sent', date:daysFromNow(-2), due:daysFromNow(12),
-      items:[{d:'Drywall patch & repair',q:1,p:1200},{d:'Repaint common hallways (sq ft)',q:2100,p:1.05},{d:'Materials & supplies',q:1,p:340}]},
-    {id:'i2', clientId:'c2', jobId:null, title:'Deposit — Building A stairwell finish', status:'paid', date:daysFromNow(-20), due:daysFromNow(-13),
-      items:[{d:'Project deposit (30%)',q:1,p:4200}]},
-  ],
-  payments: [
-    {id:'p1', invoiceId:'i2', amount:4200, method:'ACH bank transfer', date:daysFromNow(-16)},
-  ],
-  timesheets: [
-    {id:'t1', jobId:'j2', worker:'Tanya R.', hours:14, rate:45, date:daysFromNow(-3)},
-    {id:'t2', jobId:'j2', worker:'Deshawn K.', hours:12, rate:42, date:daysFromNow(-3)},
-    {id:'t3', jobId:'j1', worker:'Luis G.', hours:6, rate:48, date:daysFromNow(-1)},
-  ],
-  expenses: [
-    {id:'e1', jobId:'j2', desc:'Paint & patch compound — SW ProMar', amount:412.80, date:daysFromNow(-4)},
-    {id:'e2', jobId:'j2', desc:'Masking film, tape, sleeves', amount:86.40, date:daysFromNow(-4)},
-    {id:'e3', jobId:'j1', desc:'Level 5 skim compound (pallet)', amount:1240.00, date:daysFromNow(-2)},
-  ],
-  automations: [
-    {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:true},
-    {key:'a2', name:'Visit reminder', desc:'Text the client the day before a scheduled visit', on:true},
-    {key:'a3', name:'Invoice reminder', desc:'Nudge unpaid invoices at 3, 7 and 14 days past due', on:false},
-    {key:'a4', name:'Review request', desc:'Ask for a Google review 2 hours after a job is marked complete', on:false},
-    {key:'a5', name:'Rebook nudge', desc:'Offer repeat clients a booking link 6 months after their last job', on:false},
-  ],
-  autoLog: [
-    {when:shortDate(daysFromNow(-1)), msg:'Quote follow-up sent to Dana Whitmore (Q2, day 3 unanswered)'},
-    {when:shortDate(daysFromNow(-3)), msg:'Visit reminder texted to Harborview Apartments'},
-  ],
-  aiOn:true,
-  aiCalls: [
-    {when:shortDate(daysFromNow(-2))+', 9:12 PM', caller:'(303) 555-0164', outcome:'Booked request', lines:[
-      ['caller','Hi, do you do exterior repaints? Our HOA deadline is end of August.'],
-      ['ai','We do! We handle full exterior repaints. Can I grab your name and a good date for a free estimate?'],
-      ['ai','Booked: estimate request for Elena Marsh, week of Jul 27. Aaron will confirm by text.']]},
-  ],
-  reviewSent:{},
-  campaigns:[],
-  aiSimIdx:0,
-}); return s; }
-let state = null;
-
-/* derived helpers */
-const client = id => state.clients.find(c=>c.id===id) || {name:'—',contact:'',address:'',phone:'',email:''};
-const quoteTotal = q => q.items.reduce((s,i)=>s+i.q*i.p,0);
-const invTotal = inv => inv.items.reduce((s,i)=>s+i.q*i.p,0);
-const invPaid = inv => state.payments.filter(p=>p.invoiceId===inv.id).reduce((s,p)=>s+p.amount,0);
-const invBalance = inv => invTotal(inv)-invPaid(inv);
-const jobLabor = jid => state.timesheets.filter(t=>t.jobId===jid).reduce((s,t)=>s+t.hours*t.rate,0);
-const jobExp = jid => state.expenses.filter(e=>e.jobId===jid).reduce((s,e)=>s+e.amount,0);
-const pill = (txt,cls) => `<span class="pill ${cls}">${txt}</span>`;
-const statusPill = s => ({
-  draft:pill('Draft','p-slate'), sent:pill('Sent','p-blue'), approved:pill('Approved','p-green'),
-  scheduled:pill('Scheduled','p-blue'), in_progress:pill('In progress','p-amber'), complete:pill('Complete','p-green'),
-  paid:pill('Paid','p-green'), overdue:pill('Overdue','p-red'), new:pill('New','p-amber'), converted:pill('Converted','p-green')
-}[s] || pill(s,'p-slate'));
-
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
-function autolog(msg){state.autoLog.unshift({when:shortDate(today), msg});}
+function autolog(msg){state.autoLog.unshift({when:TL.shortDate(TL.today), msg});}
 
 /* ============================ MODAL ============================ */
 function openModal(html,wide){document.getElementById('modal').className='modal'+(wide?' wide':'');document.getElementById('modal').innerHTML=html;document.getElementById('overlay').classList.add('show');}
@@ -607,11 +474,11 @@ const NAVDEF = [
 function renderNav(){
   document.getElementById('nav').innerHTML = NAVDEF.map(([g,items])=>
     `<div class="grouplbl">${g}</div>` + items.map(([v,ic,lbl,feat])=>
-      `<a data-view="${v}" class="${current===v?'active':''}"><span class="ic">${ic}</span> ${lbl}${feat&&!has(feat)?`<span class="lock">${ICO.lock}</span>`:''}</a>`
+      `<a data-view="${v}" class="${current===v?'active':''}"><span class="ic">${ic}</span> ${lbl}${feat&&!TL.has(feat)?`<span class="lock">${ICO.lock}</span>`:''}</a>`
     ).join('')
   ).join('');
-  const p = PLANS.find(x=>x.key===state.plan);
-  document.getElementById('planBadge').innerHTML = `${pill(p.name+' plan','p-purple')} ${state.plan!=='plus'?`<button class="btn sm sec" onclick="go('plan')">Upgrade</button>`:''}`;
+  const p = TL.PLANS.find(x=>x.key===state.plan);
+  document.getElementById('planBadge').innerHTML = `${TL.pill(p.name+' plan','p-purple')} ${state.plan!=='plus'?`<button class="btn sm sec" onclick="go('plan')">Upgrade</button>`:''}`;
 }
 document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a');if(a)go(a.dataset.view);});
 
@@ -639,8 +506,8 @@ function go(view,arg){current=view;
   document.getElementById('pageTitle').textContent=t; document.getElementById('pageSub').textContent=s;
   renderNav();
   const gated = NAVFEAT[view];
-  document.getElementById('topAction').innerHTML = (gated&&!has(gated)) ? '' : (topActions[view]||'');
-  if (gated && !has(gated)) paywall(gated); else views[view](arg);
+  document.getElementById('topAction').innerHTML = (gated&&!TL.has(gated)) ? '' : (topActions[view]||'');
+  if (gated && !TL.has(gated)) paywall(gated); else views[view](arg);
   persist();
   window.scrollTo(0,0);
 }
@@ -648,21 +515,21 @@ const el = () => document.getElementById('view');
 
 /* ============================ PAYWALL ============================ */
 function paywall(f){
-  const m=FEAT[f]; const plan=PLANS.find(p=>p.key===m.min);
+  const m=TL.FEAT[f]; const plan=TL.PLANS.find(p=>p.key===m.min);
   el().innerHTML=`<div class="card paywall">
     <div class="lockic">${ICO.lock}</div>
     <h2>${m.name}</h2>
     <p>${m.desc}</p>
-    <p class="tiny">Included on the <b>${plan.name}</b> plan (${money(plan.mo)}/mo)${m.addon?` — or add it to your current plan for <b>${money(ADDONS[m.addon].mo)}/mo</b>`:''}.</p>
+    <p class="tiny">Included on the <b>${plan.name}</b> plan (${TL.money(plan.mo)}/mo)${m.addon?` — or add it to your current plan for <b>${TL.money(TL.ADDONS[m.addon].mo)}/mo</b>`:''}.</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button class="btn purple" onclick="setPlan('${m.min}')">Upgrade to ${plan.name}</button>
-      ${m.addon?`<button class="btn sec" onclick="toggleAddon('${m.addon}');go('${f}')">Add ${ADDONS[m.addon].name} — ${money(ADDONS[m.addon].mo)}/mo</button>`:''}
+      ${m.addon?`<button class="btn sec" onclick="toggleAddon('${m.addon}');go('${f}')">Add ${TL.ADDONS[m.addon].name} — ${TL.money(TL.ADDONS[m.addon].mo)}/mo</button>`:''}
       <button class="btn sec" onclick="go('plan')">Compare plans</button>
     </div>
   </div>`;
 }
-function setPlan(p){state.plan=p;toast('Upgraded to '+PLANS.find(x=>x.key===p).name+' 🎉');go(current);}
-function toggleAddon(a){state.addons[a]=!state.addons[a];toast(ADDONS[a].name+(state.addons[a]?' added':' removed'));}
+function setPlan(p){state.plan=p;toast('Upgraded to '+TL.PLANS.find(x=>x.key===p).name+' 🎉');go(current);}
+function toggleAddon(a){state.addons[a]=!state.addons[a];toast(TL.ADDONS[a].name+(state.addons[a]?' added':' removed'));}
 
 /* ============================ VIEWS ============================ */
 const views={};
@@ -670,9 +537,9 @@ const views={};
 /* ---- DASHBOARD ---- */
 views.dashboard=function(){
   const openQuotes=state.quotes.filter(q=>q.status!=='approved');
-  const pipelineV=openQuotes.reduce((s,q)=>s+quoteTotal(q),0);
+  const pipelineV=openQuotes.reduce((s,q)=>s+TL.quoteTotal(q),0);
   const upcoming=state.jobs.filter(j=>j.status!=='complete');
-  const outstanding=state.invoices.reduce((s,i)=>s+invBalance(i),0);
+  const outstanding=state.invoices.reduce((s,i)=>s+TL.invBalance(i),0);
   const collected=state.payments.reduce((s,p)=>s+p.amount,0);
   const newReq=state.requests.filter(r=>r.status==='new').length;
   const connected=INTS.filter(i=>state.integrations[i.key]).length;
@@ -680,23 +547,23 @@ views.dashboard=function(){
     [newReq>0,`Reply to ${newReq} new request(s)`,`go('requests')`],
     [state.plan!=='core',`Upgrade your plan to unlock more`,`go('plan')`],
     [connected>0,`Connect your first integration`,`go('integrations')`],
-    [has('ai')&&state.aiOn,`Turn on the AI Receptionist`,`go('ai')`],
-    [has('reports'),`Check job costing on completed work`,`go('reports')`],
+    [TL.has('ai')&&state.aiOn,`Turn on the AI Receptionist`,`go('ai')`],
+    [TL.has('reports'),`Check job costing on completed work`,`go('reports')`],
   ];
   el().innerHTML=`
-  <div class="hintbar">👋 <b>This is the full-range demo.</b> You're on the <b>${PLANS.find(p=>p.key===state.plan).name}</b> plan — locked items in the sidebar (🔒) unlock when you upgrade on the <b>Plan & Billing</b> page. Then hit <b>Integrations</b> to connect apps and watch them light up across the product.</div>
+  <div class="hintbar">👋 <b>This is the full-range demo.</b> You're on the <b>${TL.PLANS.find(p=>p.key===state.plan).name}</b> plan — locked items in the sidebar (🔒) unlock when you upgrade on the <b>Plan & Billing</b> page. Then hit <b>Integrations</b> to connect apps and watch them light up across the product.</div>
   <div class="grid cards4">
     <div class="card stat"><span class="ic">${ICO.requests}</span><div class="lbl">New requests</div><div class="val">${newReq}</div><div class="meta">Waiting on you</div></div>
-    <div class="card stat"><span class="ic">${ICO.quotes}</span><div class="lbl">Quote pipeline</div><div class="val">${money(pipelineV)}</div><div class="meta">${openQuotes.length} quote(s) out</div></div>
-    <div class="card stat"><span class="ic">${ICO.schedule}</span><div class="lbl">Jobs to run</div><div class="val">${upcoming.length}</div><div class="meta">Next: ${upcoming.length?dfmt(upcoming[0].date):'—'}</div></div>
-    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Outstanding</div><div class="val">${money(outstanding)}</div><div class="meta">${money(collected)} collected</div></div>
+    <div class="card stat"><span class="ic">${ICO.quotes}</span><div class="lbl">Quote pipeline</div><div class="val">${TL.money(pipelineV)}</div><div class="meta">${openQuotes.length} quote(s) out</div></div>
+    <div class="card stat"><span class="ic">${ICO.schedule}</span><div class="lbl">Jobs to run</div><div class="val">${upcoming.length}</div><div class="meta">Next: ${upcoming.length?TL.dfmt(upcoming[0].date):'—'}</div></div>
+    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Outstanding</div><div class="val">${TL.money(outstanding)}</div><div class="meta">${TL.money(collected)} collected</div></div>
   </div>
   <div class="grid cards2" style="margin-top:16px;align-items:start">
     <div>
       <div class="sec-title">Upcoming work</div>
       ${upcoming.length? tableJobs(upcoming) : `<div class="card empty">No jobs scheduled.</div>`}
       <div class="sec-title">Unpaid invoices</div>
-      <div class="card">${state.invoices.filter(i=>invBalance(i)>0).map(i=>`<div class="chk" style="justify-content:space-between"><div><div class="strong">${esc(client(i.clientId).name)}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong">${money(invBalance(i))}</div></div>`).join('')||'<div class="tiny">All paid up 🎉</div>'}</div>
+      <div class="card">${state.invoices.filter(i=>TL.invBalance(i)>0).map(i=>`<div class="chk" style="justify-content:space-between"><div><div class="strong">${TL.esc(TL.client(i.clientId).name)}</div><div class="tiny">Due ${TL.dfmt(i.due)}</div></div><div class="strong">${TL.money(TL.invBalance(i))}</div></div>`).join('')||'<div class="tiny">All paid up 🎉</div>'}</div>
     </div>
     <div>
       <div class="sec-title">Get set up</div>
@@ -709,9 +576,9 @@ views.dashboard=function(){
 
 /* ---- REQUESTS ---- */
 views.requests=function(){
-  el().innerHTML=`<div class="hintbar">☎ Requests are the very top of the funnel — online booking, website forms${has('ai')?', and calls your <b>AI Receptionist</b> books':''}${state.integrations.thumbtack?', and Thumbtack leads':''}. Convert one into a quote to start the lead-to-cash flow.</div>
+  el().innerHTML=`<div class="hintbar">☎ Requests are the very top of the funnel — online booking, website forms${TL.has('ai')?', and calls your <b>AI Receptionist</b> books':''}${state.integrations.thumbtack?', and Thumbtack leads':''}. Convert one into a quote to start the lead-to-cash flow.</div>
   ${state.requests.length?`<div class="tablewrap"><table><thead><tr><th>From</th><th>Requested work</th><th>Preferred date</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody>${
-    state.requests.map(r=>`<tr><td><div class="strong">${esc(r.name)}</div><div class="tiny">${esc(r.phone)}</div></td><td>${esc(r.service)}</td><td class="tiny">${dfmt(r.pref)}</td><td>${pill(r.source, r.source==='AI Receptionist'?'p-purple':'p-slate')}</td><td>${statusPill(r.status)}</td><td>${r.status==='new'?`<button class="btn sm" onclick="convertRequest('${r.id}')">Convert to quote →</button>`:''}</td></tr>`).join('')
+    state.requests.map(r=>`<tr><td><div class="strong">${TL.esc(r.name)}</div><div class="tiny">${TL.esc(r.phone)}</div></td><td>${TL.esc(r.service)}</td><td class="tiny">${TL.dfmt(r.pref)}</td><td>${TL.pill(r.source, r.source==='AI Receptionist'?'p-purple':'p-slate')}</td><td>${TL.statusPill(r.status)}</td><td>${r.status==='new'?`<button class="btn sm" onclick="convertRequest('${r.id}')">Convert to quote →</button>`:''}</td></tr>`).join('')
   }</tbody></table></div>`:'<div class="card empty">No requests. Try the AI Receptionist simulator to generate one.</div>'}`;
 };
 function newRequest(){
@@ -722,17 +589,17 @@ function newRequest(){
       <label class="fld"><span>Phone</span><input id="r_phone" placeholder="(303) 555-0100"></label>
     </div>
     <label class="fld"><span>Requested work</span><input id="r_service" placeholder="e.g. Deck stain & seal"></label>
-    <label class="fld"><span>Preferred date</span><input id="r_pref" type="date" value="${daysFromNow(9)}"></label>
+    <label class="fld"><span>Preferred date</span><input id="r_pref" type="date" value="${TL.daysFromNow(9)}"></label>
   </div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveRequest()">Save request</button></div>`);
 }
 function saveRequest(){const n=document.getElementById('r_name').value.trim();if(!n){toast('Add a name');return;}
-  state.requests.unshift({id:uid('r'),name:n,phone:document.getElementById('r_phone').value||'—',service:document.getElementById('r_service').value||'General inquiry',pref:document.getElementById('r_pref').value,source:'Manual entry',status:'new'});
+  state.requests.unshift({id:TL.uid('r'),name:n,phone:document.getElementById('r_phone').value||'—',service:document.getElementById('r_service').value||'General inquiry',pref:document.getElementById('r_pref').value,source:'Manual entry',status:'new'});
   closeModal();toast('Request added');go('requests');}
 function convertRequest(id){
   const r=state.requests.find(x=>x.id===id);
   let c=state.clients.find(x=>x.name===r.name);
-  if(!c){c={id:uid('c'),name:r.name,contact:r.name,type:'Homeowner',phone:r.phone,email:'—',address:'—'};state.clients.push(c);}
+  if(!c){c={id:TL.uid('c'),name:r.name,contact:r.name,type:'Homeowner',phone:r.phone,email:'—',address:'—'};state.clients.push(c);}
   r.status='converted';toast('Client created — now build the quote');
   newQuote(c.id, r.service);
 }
@@ -743,21 +610,21 @@ views.clients=function(){
     state.clients.map(c=>{
       const jc=state.jobs.filter(j=>j.clientId===c.id).length;
       const qc=state.quotes.filter(q=>q.clientId===c.id).length;
-      return `<tr class="click" onclick="clientDetail('${c.id}')"><td><div class="strong">${esc(c.name)}</div><div class="tiny">${esc(c.address)}</div></td><td>${pill(c.type,'p-slate')}</td><td>${esc(c.contact)}</td><td class="tiny">${esc(c.phone)}</td><td>${jc}</td><td>${qc}</td></tr>`;
+      return `<tr class="click" onclick="clientDetail('${c.id}')"><td><div class="strong">${TL.esc(c.name)}</div><div class="tiny">${TL.esc(c.address)}</div></td><td>${TL.pill(c.type,'p-slate')}</td><td>${TL.esc(c.contact)}</td><td class="tiny">${TL.esc(c.phone)}</td><td>${jc}</td><td>${qc}</td></tr>`;
     }).join('')
   }</tbody></table></div>`;
 };
-function clientDetail(id){const c=client(id);
+function clientDetail(id){const c=TL.client(id);
   const qs=state.quotes.filter(q=>q.clientId===id), js=state.jobs.filter(j=>j.clientId===id), is=state.invoices.filter(i=>i.clientId===id);
   document.getElementById('pageTitle').textContent='Client';document.getElementById('pageSub').textContent=c.name;
   el().innerHTML=`<div class="back" onclick="go('clients')">← All clients</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${esc(c.name)}</h2><div class="tiny">${pill(c.type,'p-slate')} ${state.integrations.qbo?pill('Synced to QBO ✓','p-green'):''}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${TL.esc(c.name)}</h2><div class="tiny">${TL.pill(c.type,'p-slate')} ${state.integrations.qbo?TL.pill('Synced to QBO ✓','p-green'):''}</div></div>
     <button class="btn sec sm" onclick="newQuote('${id}')">＋ New quote for this client</button></div>
   <div class="kv">
-    <div><div class="k">Contact</div><div class="v">${esc(c.contact)}</div></div>
-    <div><div class="k">Phone</div><div class="v">${esc(c.phone)}</div></div>
-    <div><div class="k">Email</div><div class="v">${esc(c.email)}</div></div>
-    <div><div class="k">Address</div><div class="v">${esc(c.address)}</div></div>
+    <div><div class="k">Contact</div><div class="v">${TL.esc(c.contact)}</div></div>
+    <div><div class="k">Phone</div><div class="v">${TL.esc(c.phone)}</div></div>
+    <div><div class="k">Email</div><div class="v">${TL.esc(c.email)}</div></div>
+    <div><div class="k">Address</div><div class="v">${TL.esc(c.address)}</div></div>
   </div>
   <div class="sec-title">Quotes</div>${qs.length?tableQuotes(qs):'<div class="card empty">No quotes yet.</div>'}
   <div class="sec-title">Jobs</div>${js.length?tableJobs(js):'<div class="card empty">No jobs yet.</div>'}
@@ -766,20 +633,20 @@ function clientDetail(id){const c=client(id);
 
 /* ---- QUOTES ---- */
 function tableQuotes(list){return `<div class="tablewrap"><table><thead><tr><th>Quote</th><th>Client</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${
-  list.map(q=>`<tr class="click" onclick="quoteDetail('${q.id}')"><td><div class="strong">${esc(q.title)}</div><div class="tiny">${q.id.toUpperCase()}</div></td><td>${esc(client(q.clientId).name)}</td><td class="tiny">${dfmt(q.date)}</td><td class="strong">${money(quoteTotal(q))}</td><td>${statusPill(q.status)}</td></tr>`).join('')
+  list.map(q=>`<tr class="click" onclick="quoteDetail('${q.id}')"><td><div class="strong">${TL.esc(q.title)}</div><div class="tiny">${q.id.toUpperCase()}</div></td><td>${TL.esc(TL.client(q.clientId).name)}</td><td class="tiny">${TL.dfmt(q.date)}</td><td class="strong">${TL.money(TL.quoteTotal(q))}</td><td>${TL.statusPill(q.status)}</td></tr>`).join('')
 }</tbody></table></div>`;}
 views.quotes=function(){el().innerHTML=state.quotes.length?tableQuotes(state.quotes):'<div class="card empty">No quotes yet. Click “New quote”.</div>';};
 
-function quoteDetail(id){const q=state.quotes.find(x=>x.id===id);const c=client(q.clientId);
+function quoteDetail(id){const q=state.quotes.find(x=>x.id===id);const c=TL.client(q.clientId);
   const steps=['draft','sent','approved'];const si=steps.indexOf(q.status);
   el().innerHTML=`<div class="back" onclick="go('quotes')">← All quotes</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${esc(q.title)}</h2><div class="tiny">${q.id.toUpperCase()} · ${esc(c.name)} · ${dfmt(q.date)}</div></div><div>${statusPill(q.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${TL.esc(q.title)}</h2><div class="tiny">${q.id.toUpperCase()} · ${TL.esc(c.name)} · ${TL.dfmt(q.date)}</div></div><div>${TL.statusPill(q.status)}</div></div>
   <div class="flow">${steps.map((s,i)=>`<div class="step ${i<=si?'done':''}"><span class="n">${i<=si?'✓':i+1}</span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>${i<2?'<span class="arw"></span>':''}`).join('')}</div>
   <div class="card">
     <table><thead><tr><th>Line item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>
-    ${q.items.map(i=>`<tr><td>${esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
+    ${q.items.map(i=>`<tr><td>${TL.esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${TL.money(i.p)}</td><td style="text-align:right" class="strong">${TL.money(i.q*i.p)}</td></tr>`).join('')}
     </tbody></table>
-    <div style="max-width:280px;margin-left:auto;margin-top:14px"><div class="subtot big"><span>Total</span><span>${money(quoteTotal(q))}</span></div></div>
+    <div style="max-width:280px;margin-left:auto;margin-top:14px"><div class="subtot big"><span>Total</span><span>${TL.money(TL.quoteTotal(q))}</span></div></div>
   </div>
   <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
     ${q.status==='draft'?`<button class="btn" onclick="setQuote('${id}','sent')">Send to client${state.integrations.gmail?' via Gmail':''}</button>`:''}
@@ -788,11 +655,11 @@ function quoteDetail(id){const q=state.quotes.find(x=>x.id===id);const c=client(
     <button class="btn sec" onclick="window.print()">🖨 Print / PDF</button>
     <button class="btn danger sm" onclick="delItem('quotes','${id}')">Delete</button>
   </div>
-  ${q.status==='sent'&&state.automations.find(a=>a.key==='a1').on&&has('automations')?'<div class="note" style="margin-top:16px">⚙ Automation armed: client gets a follow-up if this sits unanswered 3 days.</div>':''}
+  ${q.status==='sent'&&state.automations.find(a=>a.key==='a1').on&&TL.has('automations')?'<div class="note" style="margin-top:16px">⚙ Automation armed: client gets a follow-up if this sits unanswered 3 days.</div>':''}
   ${q.status==='approved'?'<div class="note" style="margin-top:16px">✓ Approved. Next: <b>Convert to job</b> to schedule the work.</div>':''}`;
 }
 function setQuote(id,s){state.quotes.find(q=>q.id===id).status=s;
-  if(s==='sent'&&has('automations')&&state.automations.find(a=>a.key==='a1').on)autolog('Follow-up scheduled for quote '+id.toUpperCase());
+  if(s==='sent'&&TL.has('automations')&&state.automations.find(a=>a.key==='a1').on)autolog('Follow-up scheduled for quote '+id.toUpperCase());
   toast('Quote → '+s);quoteDetail(id);}
 
 /* ---- PIPELINE ---- */
@@ -800,79 +667,79 @@ views.pipeline=function(){
   const leads=state.requests.filter(r=>r.status==='new');
   const quoted=state.quotes.filter(q=>q.status==='sent'||q.status==='draft');
   const won=state.quotes.filter(q=>q.status==='approved');
-  const col=(title,items,render,total)=>`<div class="kcol"><h4>${title} <span>${items.length}${total!==undefined?' · '+money(total):''}</span></h4>${items.map(render).join('')||'<div class="tiny" style="padding:6px 2px">Empty</div>'}</div>`;
+  const col=(title,items,render,total)=>`<div class="kcol"><h4>${title} <span>${items.length}${total!==undefined?' · '+TL.money(total):''}</span></h4>${items.map(render).join('')||'<div class="tiny" style="padding:6px 2px">Empty</div>'}</div>`;
   el().innerHTML=`<div class="hintbar">⇶ Every open deal in one board. Move deals right by converting requests and sending / approving quotes.</div>
   <div class="kanban">
-    ${col('Leads',leads,r=>`<div class="kcard"><div class="strong">${esc(r.name)}</div><div class="tiny">${esc(r.service)}</div><div style="margin-top:8px"><button class="btn sm" onclick="convertRequest('${r.id}')">Quote it →</button></div></div>`)}
-    ${col('Quoted',quoted,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${esc(client(q.clientId).name)}</div><div class="tiny">${esc(q.title)}</div><div class="amt">${money(quoteTotal(q))}</div><div style="margin-top:4px">${statusPill(q.status)}</div></div>`,quoted.reduce((s,q)=>s+quoteTotal(q),0))}
-    ${col('Won',won,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${esc(client(q.clientId).name)}</div><div class="tiny">${esc(q.title)}</div><div class="amt" style="color:var(--green-d)">${money(quoteTotal(q))}</div></div>`,won.reduce((s,q)=>s+quoteTotal(q),0))}
+    ${col('Leads',leads,r=>`<div class="kcard"><div class="strong">${TL.esc(r.name)}</div><div class="tiny">${TL.esc(r.service)}</div><div style="margin-top:8px"><button class="btn sm" onclick="convertRequest('${r.id}')">Quote it →</button></div></div>`)}
+    ${col('Quoted',quoted,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${TL.esc(TL.client(q.clientId).name)}</div><div class="tiny">${TL.esc(q.title)}</div><div class="amt">${TL.money(TL.quoteTotal(q))}</div><div style="margin-top:4px">${TL.statusPill(q.status)}</div></div>`,quoted.reduce((s,q)=>s+TL.quoteTotal(q),0))}
+    ${col('Won',won,q=>`<div class="kcard" style="cursor:pointer" onclick="quoteDetail('${q.id}')"><div class="strong">${TL.esc(TL.client(q.clientId).name)}</div><div class="tiny">${TL.esc(q.title)}</div><div class="amt" style="color:var(--green-d)">${TL.money(TL.quoteTotal(q))}</div></div>`,won.reduce((s,q)=>s+TL.quoteTotal(q),0))}
   </div>`;
 };
 
 /* ---- CLIENT HUB ---- */
 views.hub=function(sel){
   if(!state.clients.length){el().innerHTML='<div class="card empty">No clients yet — the Client Hub is the portal your customers see. Add a client (and send them a quote or invoice) to preview it.</div>';return;}
-  const cid = sel || state.clients[0].id; const c=client(cid);
+  const cid = sel || state.clients[0].id; const c=TL.client(cid);
   const qs=state.quotes.filter(q=>q.clientId===cid&&q.status==='sent');
-  const is=state.invoices.filter(i=>i.clientId===cid&&invBalance(i)>0);
+  const is=state.invoices.filter(i=>i.clientId===cid&&TL.invBalance(i)>0);
   const js=state.jobs.filter(j=>j.clientId===cid&&j.status!=='complete');
-  el().innerHTML=`<div class="hintbar">◱ This is the <b>customer-facing portal</b> — what ${esc(c.name)} sees when they click a link you text them. Approve a quote or pay an invoice here and watch it update in your back office.</div>
-  <div style="max-width:640px;margin:0 auto 14px"><label class="fld"><span>Preview as client</span><select onchange="go('hub',this.value)">${state.clients.map(x=>`<option value="${x.id}" ${x.id===cid?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+  el().innerHTML=`<div class="hintbar">◱ This is the <b>customer-facing portal</b> — what ${TL.esc(c.name)} sees when they click a link you text them. Approve a quote or pay an invoice here and watch it update in your back office.</div>
+  <div style="max-width:640px;margin:0 auto 14px"><label class="fld"><span>Preview as client</span><select onchange="go('hub',this.value)">${state.clients.map(x=>`<option value="${x.id}" ${x.id===cid?'selected':''}>${TL.esc(x.name)}</option>`).join('')}</select></label></div>
   <div class="hub">
-    <div class="hh"><h3>${esc(activeWs?activeWs.name:'Your Business')}</h3><div class="tiny">Client portal for ${esc(c.contact||c.name)}</div></div>
+    <div class="hh"><h3>${TL.esc(activeWs?activeWs.name:'Your Business')}</h3><div class="tiny">Client portal for ${TL.esc(c.contact||c.name)}</div></div>
     <div class="hb">
       <div class="sec-title">Quotes waiting for your approval</div>
-      ${qs.length?qs.map(q=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${esc(q.title)}</div><div class="tiny">Quoted ${dfmt(q.date)}</div></div><div class="strong">${money(quoteTotal(q))}</div></div><button class="btn sm" onclick="hubApprove('${q.id}','${cid}')">✓ Approve quote</button></div>`).join(''):'<div class="tiny" style="margin-bottom:6px">Nothing waiting.</div>'}
+      ${qs.length?qs.map(q=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${TL.esc(q.title)}</div><div class="tiny">Quoted ${TL.dfmt(q.date)}</div></div><div class="strong">${TL.money(TL.quoteTotal(q))}</div></div><button class="btn sm" onclick="hubApprove('${q.id}','${cid}')">✓ Approve quote</button></div>`).join(''):'<div class="tiny" style="margin-bottom:6px">Nothing waiting.</div>'}
       <div class="sec-title">Upcoming visits</div>
-      ${js.length?js.map(j=>`<div class="chk"><span>▦</span><label><b>${dfmt(j.date)}</b> — ${esc(j.title)}</label></div>`).join(''):'<div class="tiny">No visits scheduled.</div>'}
+      ${js.length?js.map(j=>`<div class="chk"><span>▦</span><label><b>${TL.dfmt(j.date)}</b> — ${TL.esc(j.title)}</label></div>`).join(''):'<div class="tiny">No visits scheduled.</div>'}
       <div class="sec-title">Invoices due</div>
-      ${is.length?is.map(i=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${esc(i.title)}</div><div class="tiny">Due ${dfmt(i.due)}</div></div><div class="strong" style="color:var(--red)">${money(invBalance(i))}</div></div><button class="btn sm" onclick="hubPay('${i.id}','${cid}')">Pay ${money(invBalance(i))} by card</button></div>`).join(''):'<div class="tiny">Nothing due. 🎉</div>'}
+      ${is.length?is.map(i=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${TL.esc(i.title)}</div><div class="tiny">Due ${TL.dfmt(i.due)}</div></div><div class="strong" style="color:var(--red)">${TL.money(TL.invBalance(i))}</div></div><button class="btn sm" onclick="hubPay('${i.id}','${cid}')">Pay ${TL.money(TL.invBalance(i))} by card</button></div>`).join(''):'<div class="tiny">Nothing due. 🎉</div>'}
     </div>
   </div>`;
 };
 function hubApprove(qid,cid){setQuoteSilent(qid,'approved');toast('Client approved the quote ✓ — check your Quotes list');go('hub',cid);}
 function setQuoteSilent(id,s){state.quotes.find(q=>q.id===id).status=s;}
 function hubPay(iid,cid){const inv=state.invoices.find(i=>i.id===iid);
-  state.payments.push({id:uid('p'),invoiceId:iid,amount:invBalance(inv),method:'Credit card (client hub)',date:today});
+  state.payments.push({id:TL.uid('p'),invoiceId:iid,amount:TL.invBalance(inv),method:'Credit card (client hub)',date:TL.today});
   inv.status='paid';toast('Client paid online 🎉 — see Payments');go('hub',cid);}
 
 /* ---- JOBS / SCHEDULE ---- */
 function tableJobs(list){return `<div class="tablewrap"><table><thead><tr><th>Job</th><th>Client</th><th>Date</th><th>Crew</th><th>Progress</th><th>Status</th></tr></thead><tbody>${
-  list.map(j=>{const done=j.checklist.filter(c=>c.done).length;return `<tr class="click" onclick="jobDetail('${j.id}')"><td><div class="strong">${esc(j.title)}</div><div class="tiny">${j.id.toUpperCase()}</div></td><td>${esc(client(j.clientId).name)}</td><td class="tiny">${dfmt(j.date)}</td><td class="tiny">${esc(j.crew)}</td><td class="tiny">${done}/${j.checklist.length} tasks</td><td>${statusPill(j.status)}</td></tr>`;}).join('')
+  list.map(j=>{const done=j.checklist.filter(c=>c.done).length;return `<tr class="click" onclick="jobDetail('${j.id}')"><td><div class="strong">${TL.esc(j.title)}</div><div class="tiny">${j.id.toUpperCase()}</div></td><td>${TL.esc(TL.client(j.clientId).name)}</td><td class="tiny">${TL.dfmt(j.date)}</td><td class="tiny">${TL.esc(j.crew)}</td><td class="tiny">${done}/${j.checklist.length} tasks</td><td>${TL.statusPill(j.status)}</td></tr>`;}).join('')
 }</tbody></table></div>`;}
 views.schedule=function(){
   const sorted=[...state.jobs].sort((a,b)=>a.date.localeCompare(b.date));
   el().innerHTML=`<div class="hintbar">🗓️ Jobs come from approved quotes (or direct). Open one to run the on-site <b>checklist</b>, then complete it to unlock invoicing.${state.integrations.gcal?' <b>· Syncing to Google Calendar ✓</b>':''}${state.integrations.fleetsharp?' <b>· Crew GPS live ✓</b>':''}</div>${sorted.length?tableJobs(sorted):'<div class="card empty">No jobs scheduled.</div>'}`;
 };
-function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=client(j.clientId);
+function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j.clientId);
   const done=j.checklist.filter(x=>x.done).length,total=j.checklist.length;
   const steps=['scheduled','in_progress','complete'];const si=steps.indexOf(j.status);
   const inv=state.invoices.find(i=>i.jobId===id);
-  const labor=jobLabor(id), exp=jobExp(id);
+  const labor=TL.jobLabor(id), exp=TL.jobExp(id);
   el().innerHTML=`<div class="back" onclick="go('schedule')">← Schedule</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${esc(j.title)}</h2><div class="tiny">${j.id.toUpperCase()} · ${esc(c.name)}</div></div><div>${statusPill(j.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${TL.esc(j.title)}</h2><div class="tiny">${j.id.toUpperCase()} · ${TL.esc(c.name)}</div></div><div>${TL.statusPill(j.status)}</div></div>
   <div class="flow">${steps.map((s,i)=>`<div class="step ${i<=si?'done':''}"><span class="n">${i<=si?'✓':i+1}</span>${({scheduled:'Scheduled',in_progress:'In progress',complete:'Complete'})[s]}</div>${i<2?'<span class="arw"></span>':''}`).join('')}</div>
   <div class="kv">
-    <div><div class="k">Scheduled date</div><div class="v">${dfmt(j.date)}</div></div>
-    <div><div class="k">Crew</div><div class="v">${esc(j.crew)}</div></div>
-    <div><div class="k">Site</div><div class="v">${esc(c.address)}</div></div>
+    <div><div class="k">Scheduled date</div><div class="v">${TL.dfmt(j.date)}</div></div>
+    <div><div class="k">Crew</div><div class="v">${TL.esc(j.crew)}</div></div>
+    <div><div class="k">Site</div><div class="v">${TL.esc(c.address)}</div></div>
     <div><div class="k">Source</div><div class="v">${j.quoteId?j.quoteId.toUpperCase()+' (quote)':'Direct'}</div></div>
-    ${has('timesheets')?`<div><div class="k">Labor logged</div><div class="v">${money(labor)}</div></div>`:''}
-    ${has('expenses')?`<div><div class="k">Expenses</div><div class="v">${money(exp)}</div></div>`:''}
+    ${TL.has('timesheets')?`<div><div class="k">Labor logged</div><div class="v">${TL.money(labor)}</div></div>`:''}
+    ${TL.has('expenses')?`<div><div class="k">Expenses</div><div class="v">${TL.money(exp)}</div></div>`:''}
   </div>
   ${state.integrations.companycam?'<div class="note">📷 CompanyCam photo feed attached to this job.</div>':''}
   <div class="grid cards2" style="align-items:start">
     <div class="card">
       <div class="strong" style="margin-bottom:6px">On-site checklist <span class="tiny">(${done}/${total})</span></div>
-      ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}"><input type="checkbox" ${ck.done?'checked':''} onchange="toggleChk('${id}',${idx})" id="ck${idx}"><label for="ck${idx}">${esc(ck.t)}</label></div>`).join('')}
+      ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}"><input type="checkbox" ${ck.done?'checked':''} onchange="toggleChk('${id}',${idx})" id="ck${idx}"><label for="ck${idx}">${TL.esc(ck.t)}</label></div>`).join('')}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:10px">Move this job along</div>
       ${j.status==='scheduled'?`<button class="btn" onclick="setJob('${id}','in_progress')">▶ Start job (crew on site)</button>`:''}
       ${j.status==='in_progress'?`<button class="btn" onclick="setJob('${id}','complete')">✓ Mark complete</button>`:''}
       ${j.status==='complete'&&!inv?`<div class="note">Work is done. Bill the client:</div><button class="btn" onclick="newInvoice(null,'${id}')">₿ Create invoice from job →</button>`:''}
-      ${inv?`<div class="note">Invoiced: <b>${inv.id.toUpperCase()}</b> · ${statusPill(invBalance(inv)<=0?'paid':inv.status)}</div><button class="btn sec" onclick="invoiceDetail('${inv.id}')">View invoice</button>`:''}
-      ${has('timesheets')?`<div style="margin-top:12px"><button class="btn sec sm" onclick="newTime('${id}')">⏱ Log crew time</button> <button class="btn sec sm" onclick="newExpense('${id}')">⌥ Add expense</button></div>`:''}
+      ${inv?`<div class="note">Invoiced: <b>${inv.id.toUpperCase()}</b> · ${TL.statusPill(TL.invBalance(inv)<=0?'paid':inv.status)}</div><button class="btn sec" onclick="invoiceDetail('${inv.id}')">View invoice</button>`:''}
+      ${TL.has('timesheets')?`<div style="margin-top:12px"><button class="btn sec sm" onclick="newTime('${id}')">⏱ Log crew time</button> <button class="btn sec sm" onclick="newExpense('${id}')">⌥ Add expense</button></div>`:''}
       <div style="margin-top:14px"><button class="btn danger sm" onclick="delItem('jobs','${id}')">Delete job</button></div>
     </div>
   </div>`;
@@ -880,7 +747,7 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=client(j.cl
 function toggleChk(id,idx){const j=state.jobs.find(x=>x.id===id);j.checklist[idx].done=!j.checklist[idx].done;
   if(j.checklist.some(c=>c.done)&&j.status==='scheduled')j.status='in_progress';jobDetail(id);}
 function setJob(id,s){state.jobs.find(j=>j.id===id).status=s;
-  if(s==='complete'&&has('automations')&&state.automations.find(a=>a.key==='a4').on){autolog('Review request queued for '+client(state.jobs.find(j=>j.id===id).clientId).name);toast('Job complete — review request queued ⚙');}
+  if(s==='complete'&&TL.has('automations')&&state.automations.find(a=>a.key==='a4').on){autolog('Review request queued for '+TL.client(state.jobs.find(j=>j.id===id).clientId).name);toast('Job complete — review request queued ⚙');}
   else toast('Job → '+s.replace('_',' '));
   jobDetail(id);}
 
@@ -889,22 +756,22 @@ views.timesheets=function(){
   const tot=state.timesheets.reduce((s,t)=>s+t.hours*t.rate,0);
   el().innerHTML=`<div class="grid cards3">
     <div class="card stat"><span class="ic">${ICO.timesheets}</span><div class="lbl">Hours logged</div><div class="val">${state.timesheets.reduce((s,t)=>s+t.hours,0)}</div><div class="meta">This period</div></div>
-    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Labor cost</div><div class="val">${money(tot)}</div><div class="meta">Feeds job costing</div></div>
+    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Labor cost</div><div class="val">${TL.money(tot)}</div><div class="meta">Feeds job costing</div></div>
     <div class="card stat"><span class="ic">${ICO.clients}</span><div class="lbl">Crew members</div><div class="val">${[...new Set(state.timesheets.map(t=>t.worker))].length}</div><div class="meta">With entries</div></div>
   </div>
   <div class="sec-title">Entries</div>
   <div class="tablewrap"><table><thead><tr><th>Date</th><th>Crew member</th><th>Job</th><th style="text-align:right">Hours</th><th style="text-align:right">Rate</th><th style="text-align:right">Cost</th></tr></thead><tbody>${
-    state.timesheets.map(t=>{const j=state.jobs.find(x=>x.id===t.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(t.date)}</td><td class="strong">${esc(t.worker)}</td><td class="tiny">${esc(j.title)}</td><td style="text-align:right">${t.hours}</td><td style="text-align:right">${money(t.rate)}/hr</td><td style="text-align:right" class="strong">${money(t.hours*t.rate)}</td></tr>`;}).join('')
+    state.timesheets.map(t=>{const j=state.jobs.find(x=>x.id===t.jobId)||{title:'—'};return `<tr><td class="tiny">${TL.dfmt(t.date)}</td><td class="strong">${TL.esc(t.worker)}</td><td class="tiny">${TL.esc(j.title)}</td><td style="text-align:right">${t.hours}</td><td style="text-align:right">${TL.money(t.rate)}/hr</td><td style="text-align:right" class="strong">${TL.money(t.hours*t.rate)}</td></tr>`;}).join('')
   }</tbody></table></div>`;
 };
 function newTime(preJob){
   if(needJobs())return;
   openModal(`<div class="mhead"><h3>Log time</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <label class="fld"><span>Job</span><select id="t_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${esc(j.title)}</option>`).join('')}</select></label>
+    <label class="fld"><span>Job</span><select id="t_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${TL.esc(j.title)}</option>`).join('')}</select></label>
     <div class="row2">
       <label class="fld"><span>Crew member</span><input id="t_worker" placeholder="Name"></label>
-      <label class="fld"><span>Date</span><input id="t_date" type="date" value="${today}"></label>
+      <label class="fld"><span>Date</span><input id="t_date" type="date" value="${TL.today}"></label>
     </div>
     <div class="row2">
       <label class="fld"><span>Hours</span><input id="t_hours" type="number" step="any" value="8"></label>
@@ -914,7 +781,7 @@ function newTime(preJob){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTime()">Save entry</button></div>`);
 }
 function saveTime(){const w=document.getElementById('t_worker').value.trim();if(!w){toast('Who worked?');return;}
-  state.timesheets.push({id:uid('t'),jobId:document.getElementById('t_job').value,worker:w,hours:+document.getElementById('t_hours').value||0,rate:+document.getElementById('t_rate').value||0,date:document.getElementById('t_date').value||today});
+  state.timesheets.push({id:TL.uid('t'),jobId:document.getElementById('t_job').value,worker:w,hours:+document.getElementById('t_hours').value||0,rate:+document.getElementById('t_rate').value||0,date:document.getElementById('t_date').value||TL.today});
   closeModal();toast('Time logged');go('timesheets');}
 
 /* ---- EXPENSES ---- */
@@ -922,44 +789,44 @@ views.expenses=function(){
   const tot=state.expenses.reduce((s,e)=>s+e.amount,0);
   el().innerHTML=`<div class="note">⌥ Expenses roll into <b>job costing</b> so you see real margins per job.</div>
   <div class="tablewrap"><table><thead><tr><th>Date</th><th>Description</th><th>Job</th><th style="text-align:right">Amount</th></tr></thead><tbody>${
-    state.expenses.map(e=>{const j=state.jobs.find(x=>x.id===e.jobId)||{title:'—'};return `<tr><td class="tiny">${dfmt(e.date)}</td><td class="strong">${esc(e.desc)}</td><td class="tiny">${esc(j.title)}</td><td style="text-align:right" class="strong">${money(e.amount)}</td></tr>`;}).join('')
-  }<tr><td colspan="3" class="strong" style="text-align:right">Total</td><td style="text-align:right" class="strong">${money(tot)}</td></tr></tbody></table></div>`;
+    state.expenses.map(e=>{const j=state.jobs.find(x=>x.id===e.jobId)||{title:'—'};return `<tr><td class="tiny">${TL.dfmt(e.date)}</td><td class="strong">${TL.esc(e.desc)}</td><td class="tiny">${TL.esc(j.title)}</td><td style="text-align:right" class="strong">${TL.money(e.amount)}</td></tr>`;}).join('')
+  }<tr><td colspan="3" class="strong" style="text-align:right">Total</td><td style="text-align:right" class="strong">${TL.money(tot)}</td></tr></tbody></table></div>`;
 };
 function newExpense(preJob){
   if(needJobs())return;
   openModal(`<div class="mhead"><h3>Add expense</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <label class="fld"><span>Job</span><select id="e_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${esc(j.title)}</option>`).join('')}</select></label>
+    <label class="fld"><span>Job</span><select id="e_job">${state.jobs.map(j=>`<option value="${j.id}" ${j.id===preJob?'selected':''}>${TL.esc(j.title)}</option>`).join('')}</select></label>
     <label class="fld"><span>Description</span><input id="e_desc" placeholder="e.g. Primer & sundries"></label>
     <div class="row2">
       <label class="fld"><span>Amount</span><input id="e_amt" type="number" step="any" placeholder="0.00"></label>
-      <label class="fld"><span>Date</span><input id="e_date" type="date" value="${today}"></label>
+      <label class="fld"><span>Date</span><input id="e_date" type="date" value="${TL.today}"></label>
     </div>
   </div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveExpense()">Save expense</button></div>`);
 }
 function saveExpense(){const d=document.getElementById('e_desc').value.trim();if(!d){toast('Describe it');return;}
-  state.expenses.push({id:uid('e'),jobId:document.getElementById('e_job').value,desc:d,amount:+document.getElementById('e_amt').value||0,date:document.getElementById('e_date').value||today});
+  state.expenses.push({id:TL.uid('e'),jobId:document.getElementById('e_job').value,desc:d,amount:+document.getElementById('e_amt').value||0,date:document.getElementById('e_date').value||TL.today});
   closeModal();toast('Expense added');go('expenses');}
 
 /* ---- INVOICES ---- */
 function tableInvoices(list){return `<div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Client</th><th>Due</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>${
-  list.map(i=>`<tr class="click" onclick="invoiceDetail('${i.id}')"><td><div class="strong">${esc(i.title)}</div><div class="tiny">${i.id.toUpperCase()}${state.integrations.qbo?' · QBO ✓':''}</div></td><td>${esc(client(i.clientId).name)}</td><td class="tiny">${dfmt(i.due)}</td><td class="strong">${money(invTotal(i))}</td><td>${invBalance(i)>0?`<span class="strong" style="color:var(--red)">${money(invBalance(i))}</span>`:'<span class="tiny">—</span>'}</td><td>${invBalance(i)<=0?statusPill('paid'):statusPill(i.status)}</td></tr>`).join('')
+  list.map(i=>`<tr class="click" onclick="invoiceDetail('${i.id}')"><td><div class="strong">${TL.esc(i.title)}</div><div class="tiny">${i.id.toUpperCase()}${state.integrations.qbo?' · QBO ✓':''}</div></td><td>${TL.esc(TL.client(i.clientId).name)}</td><td class="tiny">${TL.dfmt(i.due)}</td><td class="strong">${TL.money(TL.invTotal(i))}</td><td>${TL.invBalance(i)>0?`<span class="strong" style="color:var(--red)">${TL.money(TL.invBalance(i))}</span>`:'<span class="tiny">—</span>'}</td><td>${TL.invBalance(i)<=0?TL.statusPill('paid'):TL.statusPill(i.status)}</td></tr>`).join('')
 }</tbody></table></div>`;}
 views.invoices=function(){el().innerHTML=state.invoices.length?tableInvoices(state.invoices):'<div class="card empty">No invoices yet.</div>';};
 
-function invoiceDetail(id){const inv=state.invoices.find(x=>x.id===id);const c=client(inv.clientId);
-  const bal=invBalance(inv),paid=invPaid(inv);const pays=state.payments.filter(p=>p.invoiceId===id);
+function invoiceDetail(id){const inv=state.invoices.find(x=>x.id===id);const c=TL.client(inv.clientId);
+  const bal=TL.invBalance(inv),paid=TL.invPaid(inv);const pays=state.payments.filter(p=>p.invoiceId===id);
   el().innerHTML=`<div class="back" onclick="go('invoices')">← All invoices</div>
-  <div class="detail-head"><div><h2 style="font-size:22px">${esc(inv.title)}</h2><div class="tiny">${inv.id.toUpperCase()} · ${esc(c.name)} · issued ${dfmt(inv.date)} · due ${dfmt(inv.due)} ${state.integrations.qbo?pill('Synced to QuickBooks ✓','p-green'):''}</div></div><div>${bal<=0?statusPill('paid'):statusPill(inv.status)}</div></div>
+  <div class="detail-head"><div><h2 style="font-size:22px">${TL.esc(inv.title)}</h2><div class="tiny">${inv.id.toUpperCase()} · ${TL.esc(c.name)} · issued ${TL.dfmt(inv.date)} · due ${TL.dfmt(inv.due)} ${state.integrations.qbo?TL.pill('Synced to QuickBooks ✓','p-green'):''}</div></div><div>${bal<=0?TL.statusPill('paid'):TL.statusPill(inv.status)}</div></div>
   <div class="card">
     <table><thead><tr><th>Line item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>
-    ${inv.items.map(i=>`<tr><td>${esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${money(i.p)}</td><td style="text-align:right" class="strong">${money(i.q*i.p)}</td></tr>`).join('')}
+    ${inv.items.map(i=>`<tr><td>${TL.esc(i.d)}</td><td style="text-align:right">${i.q}</td><td style="text-align:right">${TL.money(i.p)}</td><td style="text-align:right" class="strong">${TL.money(i.q*i.p)}</td></tr>`).join('')}
     </tbody></table>
     <div style="max-width:300px;margin-left:auto;margin-top:14px">
-      <div class="subtot"><span>Total</span><span>${money(invTotal(inv))}</span></div>
-      <div class="subtot"><span>Paid</span><span style="color:var(--green-d)">${money(paid)}</span></div>
-      <div class="subtot big"><span>Balance due</span><span style="color:${bal>0?'var(--red)':'var(--green-d)'}">${money(bal)}</span></div>
+      <div class="subtot"><span>Total</span><span>${TL.money(TL.invTotal(inv))}</span></div>
+      <div class="subtot"><span>Paid</span><span style="color:var(--green-d)">${TL.money(paid)}</span></div>
+      <div class="subtot big"><span>Balance due</span><span style="color:${bal>0?'var(--red)':'var(--green-d)'}">${TL.money(bal)}</span></div>
     </div>
   </div>
   <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
@@ -968,23 +835,23 @@ function invoiceDetail(id){const inv=state.invoices.find(x=>x.id===id);const c=c
     <button class="btn sec" onclick="window.print()">🖨 Print / PDF</button>
     <button class="btn danger sm" onclick="delItem('invoices','${id}')">Delete</button>
   </div>
-  ${bal>0&&has('automations')&&state.automations.find(a=>a.key==='a3').on?'<div class="note" style="margin-top:16px">⚙ Automation armed: reminders fire at 3, 7 and 14 days past due.</div>':''}
-  ${pays.length?`<div class="sec-title">Payment history</div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>${pays.map(p=>`<tr><td class="tiny">${dfmt(p.date)}</td><td>${p.method}</td><td style="text-align:right" class="strong">${money(p.amount)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  ${bal>0&&TL.has('automations')&&state.automations.find(a=>a.key==='a3').on?'<div class="note" style="margin-top:16px">⚙ Automation armed: reminders fire at 3, 7 and 14 days past due.</div>':''}
+  ${pays.length?`<div class="sec-title">Payment history</div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>${pays.map(p=>`<tr><td class="tiny">${TL.dfmt(p.date)}</td><td>${p.method}</td><td style="text-align:right" class="strong">${TL.money(p.amount)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function setInv(id,s){state.invoices.find(i=>i.id===id).status=s;toast('Invoice → '+s);invoiceDetail(id);}
 
 /* ---- PAYMENTS ---- */
 views.payments=function(){
   const collected=state.payments.reduce((s,p)=>s+p.amount,0);
-  const outstanding=state.invoices.reduce((s,i)=>s+invBalance(i),0);
+  const outstanding=state.invoices.reduce((s,i)=>s+TL.invBalance(i),0);
   el().innerHTML=`<div class="grid cards3">
-    <div class="card stat"><span class="ic">${ICO.collected}</span><div class="lbl">Collected</div><div class="val">${money(collected)}</div><div class="meta">${state.payments.length} payment(s)</div></div>
-    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Still outstanding</div><div class="val">${money(outstanding)}</div><div class="meta">Across open invoices</div></div>
-    <div class="card stat"><span class="ic">${ICO.percent}</span><div class="lbl">Est. processing fees</div><div class="val">${money(collected*0.029)}</div><div class="meta">~2.9% + 30¢ card rate${state.integrations.stripe?' · via Stripe':''}</div></div>
+    <div class="card stat"><span class="ic">${ICO.collected}</span><div class="lbl">Collected</div><div class="val">${TL.money(collected)}</div><div class="meta">${state.payments.length} payment(s)</div></div>
+    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Still outstanding</div><div class="val">${TL.money(outstanding)}</div><div class="meta">Across open invoices</div></div>
+    <div class="card stat"><span class="ic">${ICO.percent}</span><div class="lbl">Est. processing fees</div><div class="val">${TL.money(collected*0.029)}</div><div class="meta">~2.9% + 30¢ card rate${state.integrations.stripe?' · via Stripe':''}</div></div>
   </div>
   <div class="sec-title">All payments</div>
   ${state.payments.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Client</th><th>Invoice</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>${
-    [...state.payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{const inv=state.invoices.find(i=>i.id===p.invoiceId)||{};return `<tr class="click" onclick="invoiceDetail('${p.invoiceId}')"><td class="tiny">${dfmt(p.date)}</td><td class="strong">${esc(client(inv.clientId).name)}</td><td class="tiny">${(p.invoiceId||'').toUpperCase()}</td><td>${p.method}</td><td style="text-align:right" class="strong">${money(p.amount)}</td></tr>`;}).join('')
+    [...state.payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{const inv=state.invoices.find(i=>i.id===p.invoiceId)||{};return `<tr class="click" onclick="invoiceDetail('${p.invoiceId}')"><td class="tiny">${TL.dfmt(p.date)}</td><td class="strong">${TL.esc(TL.client(inv.clientId).name)}</td><td class="tiny">${(p.invoiceId||'').toUpperCase()}</td><td>${p.method}</td><td style="text-align:right" class="strong">${TL.money(p.amount)}</td></tr>`;}).join('')
   }</tbody></table></div>`:'<div class="card empty">No payments recorded yet.</div>'}`;
 };
 
@@ -995,7 +862,7 @@ views.marketing=function(){
     <div class="card">
       <div class="strong" style="margin-bottom:4px">⭐ Review requests</div>
       <div class="tiny" style="margin-bottom:10px">One-tap Google review asks after each job.${state.integrations.nicejob?' <b>NiceJob connected ✓</b>':''}</div>
-      ${recent.map(c=>`<div class="chk" style="justify-content:space-between"><label>${esc(c.name)}</label>${state.reviewSent[c.id]?pill(state.reviewSent[c.id]==='sent'?'Requested':'★★★★★ received','p-green'):`<button class="btn sm sec" onclick="sendReview('${c.id}')">Request</button>`}</div>`).join('')||'<div class="tiny">Add clients to start requesting reviews.</div>'}
+      ${recent.map(c=>`<div class="chk" style="justify-content:space-between"><label>${TL.esc(c.name)}</label>${state.reviewSent[c.id]?TL.pill(state.reviewSent[c.id]==='sent'?'Requested':'★★★★★ received','p-green'):`<button class="btn sm sec" onclick="sendReview('${c.id}')">Request</button>`}</div>`).join('')||'<div class="tiny">Add clients to start requesting reviews.</div>'}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:4px">✉ Email campaign</div>
@@ -1003,18 +870,18 @@ views.marketing=function(){
       <label class="fld"><span>Subject</span><input id="camp_subj" placeholder="Summer exterior special — 10% off"></label>
       <label class="fld"><span>Message</span><textarea id="camp_body" rows="3" placeholder="Book before Aug 15 and save…"></textarea></label>
       <button class="btn sm" onclick="sendCampaign()">Send to ${state.clients.length} clients</button>
-      ${state.campaigns.map(cp=>`<div class="note" style="margin-top:10px;margin-bottom:0">Sent “${esc(cp.subj)}” → ${cp.n} clients · ${cp.opens} opens</div>`).join('')}
+      ${state.campaigns.map(cp=>`<div class="note" style="margin-top:10px;margin-bottom:0">Sent “${TL.esc(cp.subj)}” → ${cp.n} clients · ${cp.opens} opens</div>`).join('')}
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:4px">🤝 Referral program</div>
       <div class="tiny" style="margin-bottom:10px">Clients share a link from their hub; both sides get $50 off.</div>
-      <div class="kv" style="margin:6px 0"><div><div class="k">Links shared</div><div class="v">${state.clients.length*3}</div></div><div><div class="k">New leads</div><div class="v">${Math.floor(state.clients.length*0.75)}</div></div><div><div class="k">Won revenue</div><div class="v">${money(state.payments.reduce((s,p)=>s+p.amount,0)*0.3)}</div></div></div>
+      <div class="kv" style="margin:6px 0"><div><div class="k">Links shared</div><div class="v">${state.clients.length*3}</div></div><div><div class="k">New leads</div><div class="v">${Math.floor(state.clients.length*0.75)}</div></div><div><div class="k">Won revenue</div><div class="v">${TL.money(state.payments.reduce((s,p)=>s+p.amount,0)*0.3)}</div></div></div>
       <div class="tiny">${state.clients.length?'Top referrer: '+state.clients[0].name:'No referral activity yet.'}</div>
     </div>
   </div>`;
 };
-function sendReview(cid){state.reviewSent[cid]='sent';toast('Review request sent to '+client(cid).name);
-  setTimeout(()=>{state.reviewSent[cid]='got';if(current==='marketing'){go('marketing');toast('⭐ '+client(cid).name+' left a 5-star review!');}},2500);
+function sendReview(cid){state.reviewSent[cid]='sent';toast('Review request sent to '+TL.client(cid).name);
+  setTimeout(()=>{state.reviewSent[cid]='got';if(current==='marketing'){go('marketing');toast('⭐ '+TL.client(cid).name+' left a 5-star review!');}},2500);
   go('marketing');}
 function sendCampaign(){const s=document.getElementById('camp_subj').value.trim();if(!s){toast('Add a subject');return;}
   state.campaigns.unshift({subj:s,n:state.clients.length,opens:Math.max(1,Math.round(state.clients.length*0.62))});
@@ -1043,14 +910,14 @@ views.ai=function(){
   <div style="margin-bottom:18px"><button class="btn purple" onclick="simCall()" ${state.aiOn?'':'disabled style=opacity:.5'}>☎ Simulate an after-hours call</button></div>
   <div class="sec-title">Call log</div>
   ${state.aiCalls.map(c=>`<div class="card" style="margin-bottom:12px">
-    <div class="detail-head"><div><div class="strong">${c.caller}</div><div class="tiny">${c.when}</div></div>${pill(c.outcome,'p-purple')}</div>
+    <div class="detail-head"><div><div class="strong">${c.caller}</div><div class="tiny">${c.when}</div></div>${TL.pill(c.outcome,'p-purple')}</div>
     <div style="margin-top:10px">${c.lines.map(([who,txt])=>`<div class="chatline"><div class="bub ${who}">${who==='ai'?'✦ ':''}${txt}</div></div>`).join('')}</div>
   </div>`).join('')}`;
 };
 function simCall(){
   const sim=AI_SIMS[state.aiSimIdx % AI_SIMS.length]; state.aiSimIdx++;
-  state.aiCalls.unshift({when:shortDate(today)+' (just now)', caller:sim.caller, outcome:'Booked request', lines:sim.lines});
-  state.requests.unshift({id:uid('r'),name:sim.name,phone:sim.caller,service:sim.service,pref:daysFromNow(9),source:'AI Receptionist',status:'new'});
+  state.aiCalls.unshift({when:TL.shortDate(TL.today)+' (just now)', caller:sim.caller, outcome:'Booked request', lines:sim.lines});
+  state.requests.unshift({id:TL.uid('r'),name:sim.name,phone:sim.caller,service:sim.service,pref:TL.daysFromNow(9),source:'AI Receptionist',status:'new'});
   toast('✦ AI booked a new request — check Requests');
   go('ai');
 }
@@ -1059,9 +926,9 @@ function simCall(){
 views.reports=function(){
   const rows=state.jobs.map(j=>{
     const q=j.quoteId?state.quotes.find(x=>x.id===j.quoteId):null;
-    const quoted=q?quoteTotal(q):0;
-    const invd=state.invoices.filter(i=>i.jobId===j.id).reduce((s,i)=>s+invTotal(i),0);
-    const labor=jobLabor(j.id), exp=jobExp(j.id);
+    const quoted=q?TL.quoteTotal(q):0;
+    const invd=state.invoices.filter(i=>i.jobId===j.id).reduce((s,i)=>s+TL.invTotal(i),0);
+    const labor=TL.jobLabor(j.id), exp=TL.jobExp(j.id);
     const rev = invd||quoted; const profit=rev-labor-exp;
     const margin = rev? (profit/rev*100) : 0;
     return {j,quoted,invd,labor,exp,profit,margin,rev};
@@ -1069,13 +936,13 @@ views.reports=function(){
   const totRev=rows.reduce((s,r)=>s+r.rev,0), totProfit=rows.reduce((s,r)=>s+r.profit,0);
   el().innerHTML=`<div class="hintbar"><b>Job costing</b> — the report that tells you which jobs actually made money. Revenue (invoiced, or quoted if unbilled) minus logged labor and expenses. This is the Grow-plan feature closest to what JobTread does all day.</div>
   <div class="grid cards3">
-    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Revenue (booked)</div><div class="val">${money(totRev)}</div><div class="meta">Across ${rows.length} job(s)</div></div>
-    <div class="card stat"><span class="ic">${ICO.reports}</span><div class="lbl">Gross profit</div><div class="val" style="color:${totProfit>=0?'var(--green-d)':'var(--red)'}">${money(totProfit)}</div><div class="meta">After labor + materials</div></div>
+    <div class="card stat"><span class="ic">${ICO.money}</span><div class="lbl">Revenue (booked)</div><div class="val">${TL.money(totRev)}</div><div class="meta">Across ${rows.length} job(s)</div></div>
+    <div class="card stat"><span class="ic">${ICO.reports}</span><div class="lbl">Gross profit</div><div class="val" style="color:${totProfit>=0?'var(--green-d)':'var(--red)'}">${TL.money(totProfit)}</div><div class="meta">After labor + materials</div></div>
     <div class="card stat"><span class="ic">${ICO.percent}</span><div class="lbl">Blended margin</div><div class="val">${totRev?Math.round(totProfit/totRev*100):0}%</div><div class="meta">Target: 45%+</div></div>
   </div>
   <div class="sec-title">Per-job breakdown</div>
   <div class="tablewrap"><table><thead><tr><th>Job</th><th style="text-align:right">Quoted</th><th style="text-align:right">Invoiced</th><th style="text-align:right">Labor</th><th style="text-align:right">Materials</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr></thead><tbody>${
-    rows.map(r=>`<tr class="click" onclick="jobDetail('${r.j.id}')"><td><div class="strong">${r.j.title}</div><div class="tiny">${esc(client(r.j.clientId).name)} · ${statusPill(r.j.status)}</div></td><td style="text-align:right">${r.quoted?money(r.quoted):'—'}</td><td style="text-align:right">${r.invd?money(r.invd):'—'}</td><td style="text-align:right">${money(r.labor)}</td><td style="text-align:right">${money(r.exp)}</td><td class="strong" style="text-align:right;color:${r.profit>=0?'inherit':'var(--red)'}">${money(r.profit)}</td><td style="text-align:right">${r.rev?`<span class="pill ${r.margin>=45?'p-green':r.margin>=25?'p-amber':'p-red'}">${Math.round(r.margin)}%</span>`:'—'}</td></tr>`).join('')
+    rows.map(r=>`<tr class="click" onclick="jobDetail('${r.j.id}')"><td><div class="strong">${r.j.title}</div><div class="tiny">${TL.esc(TL.client(r.j.clientId).name)} · ${TL.statusPill(r.j.status)}</div></td><td style="text-align:right">${r.quoted?TL.money(r.quoted):'—'}</td><td style="text-align:right">${r.invd?TL.money(r.invd):'—'}</td><td style="text-align:right">${TL.money(r.labor)}</td><td style="text-align:right">${TL.money(r.exp)}</td><td class="strong" style="text-align:right;color:${r.profit>=0?'inherit':'var(--red)'}">${TL.money(r.profit)}</td><td style="text-align:right">${r.rev?`<span class="pill ${r.margin>=45?'p-green':r.margin>=25?'p-amber':'p-red'}">${Math.round(r.margin)}%</span>`:'—'}</td></tr>`).join('')
   }</tbody></table></div>
   <div class="tiny" style="margin-top:10px">Log more time (Timesheets) and materials (Expenses) to watch these margins move.</div>`;
 };
@@ -1104,12 +971,12 @@ views.integrations=function(){
   el().innerHTML=`<div class="hintbar">⇄ <b>${n} of ${INTS.length} connected.</b> Connecting an app here changes what you see across the product — QuickBooks badges invoices, Google Calendar shows on the schedule, Thumbtack feeds Requests, and so on. (All simulated — nothing real is contacted.)</div>
   <div class="ints">${INTS.map(i=>{
     const on=!!state.integrations[i.key];
-    const locked=i.min&&RANK[state.plan]<RANK[i.min];
+    const locked=i.min&&TL.RANK[state.plan]<TL.RANK[i.min];
     return `<div class="int">
       <div class="ihead"><span class="logo" style="background:${i.color};color:${i.dark?'#333':'#fff'}">${i.name[0]}</span><div><h4>${i.name}</h4><span class="tiny">${i.cat}</span></div></div>
       <div class="desc">${i.desc}</div>
       ${on?`<div class="fx">${i.fx()}</div>`:''}
-      ${locked?`<button class="btn sec sm" onclick="go('plan')">🔒 Needs ${PLANS.find(p=>p.key===i.min).name} plan</button>`
+      ${locked?`<button class="btn sec sm" onclick="go('plan')">🔒 Needs ${TL.PLANS.find(p=>p.key===i.min).name} plan</button>`
         :`<button class="btn sm ${on?'sec':''}" onclick="toggleInt('${i.key}')">${on?'Disconnect':'Connect'}</button>`}
     </div>`;}).join('')}
   </div>`;
@@ -1118,7 +985,7 @@ function toggleInt(k){state.integrations[k]=!state.integrations[k];
   const i=INTS.find(x=>x.key===k);
   toast(i.name+(state.integrations[k]?' connected ✓':' disconnected'));
   if(k==='thumbtack'&&state.integrations[k]){
-    state.requests.unshift({id:uid('r'),name:'Thumbtack lead — Casey Lin',phone:'(303) 555-0171',service:'Basement ceiling — paint & texture',pref:daysFromNow(16),source:'Thumbtack',status:'new'});
+    state.requests.unshift({id:TL.uid('r'),name:'Thumbtack lead — Casey Lin',phone:'(303) 555-0171',service:'Basement ceiling — paint & texture',pref:TL.daysFromNow(16),source:'Thumbtack',status:'new'});
     toast('Thumbtack connected — a lead just landed in Requests!');
   }
   go('integrations');}
@@ -1126,35 +993,35 @@ function toggleInt(k){state.integrations[k]=!state.integrations[k];
 /* ---- PLAN & BILLING ---- */
 views.plan=function(){
   const cur=state.plan;
-  const addonBill=Object.entries(state.addons).filter(([k,v])=>v&&RANK[cur]<RANK.plus).reduce((s,[k])=>s+ADDONS[k].mo,0);
-  const bill=PLANS.find(p=>p.key===cur).mo + (RANK[cur]===3?0:addonBill) + state.extraUsers*29;
+  const addonBill=Object.entries(state.addons).filter(([k,v])=>v&&TL.RANK[cur]<TL.RANK.plus).reduce((s,[k])=>s+TL.ADDONS[k].mo,0);
+  const bill=TL.PLANS.find(p=>p.key===cur).mo + (TL.RANK[cur]===3?0:addonBill) + state.extraUsers*29;
   el().innerHTML=`
-  <div class="plans">${PLANS.map(p=>`
+  <div class="plans">${TL.PLANS.map(p=>`
     <div class="plan ${p.key===cur?'cur':''}">
       ${p.key===cur?`<span class="cur-tag pill p-green">Current plan</span>`:''}
       <h4>${p.name}</h4>
-      <div class="pr">${money(p.mo).replace('.00','')}<small>/mo · up to ${p.users} users</small></div>
+      <div class="pr">${TL.money(p.mo).replace('.00','')}<small>/mo · up to ${p.users} users</small></div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
       ${p.key===cur?`<button class="btn sec" disabled style="opacity:.5">Selected</button>`
-        :`<button class="btn ${RANK[p.key]>RANK[cur]?'purple':'sec'}" onclick="setPlan('${p.key}')">${RANK[p.key]>RANK[cur]?'Upgrade':'Downgrade'} to ${p.name}</button>`}
+        :`<button class="btn ${TL.RANK[p.key]>TL.RANK[cur]?'purple':'sec'}" onclick="setPlan('${p.key}')">${TL.RANK[p.key]>TL.RANK[cur]?'Upgrade':'Downgrade'} to ${p.name}</button>`}
     </div>`).join('')}
   </div>
   <div class="grid cards2" style="margin-top:18px;align-items:start">
     <div class="card">
-      <div class="strong" style="margin-bottom:6px">Add-ons ${RANK[cur]===3?'<span class="tiny">(all included in Plus)</span>':''}</div>
-      ${Object.entries(ADDONS).map(([k,a])=>{
-        const included=RANK[cur]===3;
-        return `<div class="tglrow"><div><div class="strong">${a.name}</div><div class="tiny">${included?'Included in your plan':money(a.mo)+'/mo'}</div></div>${included?pill('Included','p-green'):`<div class="tgl ${state.addons[k]?'on':''}" onclick="toggleAddon('${k}');go('plan')"></div>`}</div>`;
+      <div class="strong" style="margin-bottom:6px">Add-ons ${TL.RANK[cur]===3?'<span class="tiny">(all included in Plus)</span>':''}</div>
+      ${Object.entries(TL.ADDONS).map(([k,a])=>{
+        const included=TL.RANK[cur]===3;
+        return `<div class="tglrow"><div><div class="strong">${a.name}</div><div class="tiny">${included?'Included in your plan':TL.money(a.mo)+'/mo'}</div></div>${included?TL.pill('Included','p-green'):`<div class="tgl ${state.addons[k]?'on':''}" onclick="toggleAddon('${k}');go('plan')"></div>`}</div>`;
       }).join('')}
       <div class="tglrow"><div><div class="strong">Extra users</div><div class="tiny">$29/mo each beyond plan limit</div></div>
         <div style="display:flex;align-items:center;gap:8px"><button class="btn sec sm" onclick="state.extraUsers=Math.max(0,state.extraUsers-1);go('plan')">−</button><b>${state.extraUsers}</b><button class="btn sec sm" onclick="state.extraUsers++;go('plan')">＋</button></div></div>
     </div>
     <div class="card">
       <div class="strong" style="margin-bottom:6px">Your simulated monthly bill</div>
-      <div class="subtot"><span>${PLANS.find(p=>p.key===cur).name} plan</span><span>${money(PLANS.find(p=>p.key===cur).mo)}</span></div>
-      ${RANK[cur]<3?Object.entries(state.addons).filter(([k,v])=>v).map(([k])=>`<div class="subtot"><span>${ADDONS[k].name} add-on</span><span>${money(ADDONS[k].mo)}</span></div>`).join(''):''}
-      ${state.extraUsers?`<div class="subtot"><span>${state.extraUsers} extra user(s)</span><span>${money(state.extraUsers*29)}</span></div>`:''}
-      <div class="subtot big"><span>Total</span><span>${money(bill)}</span></div>
+      <div class="subtot"><span>${TL.PLANS.find(p=>p.key===cur).name} plan</span><span>${TL.money(TL.PLANS.find(p=>p.key===cur).mo)}</span></div>
+      ${TL.RANK[cur]<3?Object.entries(state.addons).filter(([k,v])=>v).map(([k])=>`<div class="subtot"><span>${TL.ADDONS[k].name} add-on</span><span>${TL.money(TL.ADDONS[k].mo)}</span></div>`).join(''):''}
+      ${state.extraUsers?`<div class="subtot"><span>${state.extraUsers} extra user(s)</span><span>${TL.money(state.extraUsers*29)}</span></div>`:''}
+      <div class="subtot big"><span>Total</span><span>${TL.money(bill)}</span></div>
       <div class="tiny" style="margin-top:10px">Mirrors Jobber's real packaging: Core → Connect → Grow → Plus, with Pipeline / Marketing / AI as add-ons on lower tiers and included on Plus. Prices approximate Jobber's published monthly rates.</div>
     </div>
   </div>`;
@@ -1178,7 +1045,7 @@ function newClient(){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveClient()">Save client</button></div>`);
 }
 function saveClient(){const n=document.getElementById('f_name').value.trim();if(!n){toast('Give the client a name');return;}
-  state.clients.push({id:uid('c'),name:n,contact:document.getElementById('f_contact').value||'—',type:document.getElementById('f_type').value,phone:document.getElementById('f_phone').value||'—',email:document.getElementById('f_email').value||'—',address:document.getElementById('f_address').value||'—'});
+  state.clients.push({id:TL.uid('c'),name:n,contact:document.getElementById('f_contact').value||'—',type:document.getElementById('f_type').value,phone:document.getElementById('f_phone').value||'—',email:document.getElementById('f_email').value||'—',address:document.getElementById('f_address').value||'—'});
   closeModal();toast('Client added');go('clients');}
 
 let draftItems=[];
@@ -1188,10 +1055,10 @@ function newQuote(preClient,preTitle){if(needClients())return;draftItems=[{d:'',
   openModal(`<div class="mhead"><h3>New quote</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="q_client">${state.clients.map(c=>`<option value="${c.id}" ${c.id===preClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-      <label class="fld"><span>Date</span><input id="q_date" type="date" value="${today}"></label>
+      <label class="fld"><span>Client</span><select id="q_client">${state.clients.map(c=>`<option value="${c.id}" ${c.id===preClient?'selected':''}>${TL.esc(c.name)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Date</span><input id="q_date" type="date" value="${TL.today}"></label>
     </div>
-    <label class="fld"><span>Job title</span><input id="q_title" value="${preTitle?esc(preTitle):''}" placeholder="e.g. Interior repaint — main level"></label>
+    <label class="fld"><span>Job title</span><input id="q_title" value="${preTitle?TL.esc(preTitle):''}" placeholder="e.g. Interior repaint — main level"></label>
     <span style="display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin:6px 0 8px">Line items</span>
     <div id="q_items"></div>
     <button class="btn ghost sm" onclick="addItem()">＋ Add line item</button>
@@ -1202,20 +1069,20 @@ function newQuote(preClient,preTitle){if(needClients())return;draftItems=[{d:'',
 }
 function renderItems(){document.getElementById('q_items').innerHTML=draftItems.map((it,i)=>`
   <div class="li-row">
-    <input placeholder="Description" value="${esc(it.d)}" oninput="upd(${i},'d',this.value)">
+    <input placeholder="Description" value="${TL.esc(it.d)}" oninput="upd(${i},'d',this.value)">
     <input type="number" min="0" step="any" placeholder="Qty" value="${it.q}" oninput="upd(${i},'q',this.value)">
     <input type="number" min="0" step="any" placeholder="Rate" value="${it.p}" oninput="upd(${i},'p',this.value)">
     <button class="btn sec sm" onclick="rmItem(${i})" ${draftItems.length<2?'disabled style=opacity:.4':''}>×</button>
   </div>`).join('');
-  const tot=draftItems.reduce((s,i)=>s+(+i.q||0)*(+i.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=money(tot);}
+  const tot=draftItems.reduce((s,i)=>s+(+i.q||0)*(+i.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=TL.money(tot);}
 function addItem(){draftItems.push({d:'',q:1,p:0});renderItems();}
 function rmItem(i){draftItems.splice(i,1);renderItems();}
-function upd(i,k,v){draftItems[i][k]=(k==='d')?v:(+v||0);const tot=draftItems.reduce((s,x)=>s+(+x.q||0)*(+x.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=money(tot);}
+function upd(i,k,v){draftItems[i][k]=(k==='d')?v:(+v||0);const tot=draftItems.reduce((s,x)=>s+(+x.q||0)*(+x.p||0),0);const t=document.getElementById('q_total');if(t)t.textContent=TL.money(tot);}
 function saveQuote(status){const title=document.getElementById('q_title').value.trim();if(!title){toast('Add a job title');return;}
   const items=draftItems.filter(i=>i.d.trim()).map(i=>({d:i.d,q:+i.q||0,p:+i.p||0}));if(!items.length){toast('Add at least one line item');return;}
-  const q={id:uid('q'),clientId:document.getElementById('q_client').value,title,status,date:document.getElementById('q_date').value||today,items};
+  const q={id:TL.uid('q'),clientId:document.getElementById('q_client').value,title,status,date:document.getElementById('q_date').value||TL.today,items};
   state.quotes.push(q);
-  if(status==='sent'&&has('automations')&&state.automations.find(a=>a.key==='a1').on)autolog('Follow-up scheduled for quote '+q.id.toUpperCase());
+  if(status==='sent'&&TL.has('automations')&&state.automations.find(a=>a.key==='a1').on)autolog('Follow-up scheduled for quote '+q.id.toUpperCase());
   closeModal();toast(status==='sent'?'Quote sent':'Draft saved');go('quotes');quoteDetail(q.id);}
 
 function newJob(preClient,fromQuote){
@@ -1224,12 +1091,12 @@ function newJob(preClient,fromQuote){
   const selClient=q?q.clientId:(preClient||state.clients[0].id);
   openModal(`<div class="mhead"><h3>${q?'Convert quote to job':'Schedule a job'}</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    ${q?`<div class="note">Building a job from approved quote <b>${q.id.toUpperCase()}</b> — ${money(quoteTotal(q))}.</div>`:''}
+    ${q?`<div class="note">Building a job from approved quote <b>${q.id.toUpperCase()}</b> — ${TL.money(TL.quoteTotal(q))}.</div>`:''}
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="j_client" ${q?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-      <label class="fld"><span>Date</span><input id="j_date" type="date" value="${today}"></label>
+      <label class="fld"><span>Client</span><select id="j_client" ${q?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${TL.esc(c.name)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Date</span><input id="j_date" type="date" value="${TL.today}"></label>
     </div>
-    <label class="fld"><span>Job title</span><input id="j_title" value="${q?esc(q.title):''}" placeholder="What's the work?"></label>
+    <label class="fld"><span>Job title</span><input id="j_title" value="${q?TL.esc(q.title):''}" placeholder="What's the work?"></label>
     <label class="fld"><span>Assign crew</span><input id="j_crew" placeholder="e.g. Crew A — Luis, Marco"></label>
     <label class="fld"><span>Checklist (one task per line)</span><textarea id="j_chk" rows="4">${q?'Confirm site is ready\nStage materials\nMask & protect\nDo the work\nFinal walk-through':''}</textarea></label>
   </div>
@@ -1237,7 +1104,7 @@ function newJob(preClient,fromQuote){
 }
 function saveJob(fromQuote){const title=document.getElementById('j_title').value.trim();if(!title){toast('Add a job title');return;}
   const chk=document.getElementById('j_chk').value.split('\n').map(t=>t.trim()).filter(Boolean).map(t=>({t,done:false}));
-  const j={id:uid('j'),clientId:document.getElementById('j_client').value,quoteId:fromQuote||null,title,date:document.getElementById('j_date').value||today,crew:document.getElementById('j_crew').value||'Unassigned',status:'scheduled',checklist:chk.length?chk:[{t:'Complete the work',done:false}]};
+  const j={id:TL.uid('j'),clientId:document.getElementById('j_client').value,quoteId:fromQuote||null,title,date:document.getElementById('j_date').value||TL.today,crew:document.getElementById('j_crew').value||'Unassigned',status:'scheduled',checklist:chk.length?chk:[{t:'Complete the work',done:false}]};
   state.jobs.push(j);closeModal();toast('Job scheduled'+(state.integrations.gcal?' · synced to Google Calendar':''));go('schedule');jobDetail(j.id);}
 
 function newInvoice(preClient,fromJob){
@@ -1250,10 +1117,10 @@ function newInvoice(preClient,fromJob){
   <div class="mbody">
     ${q?`<div class="note">Line items pulled from quote <b>${q.id.toUpperCase()}</b>. Edit before sending.</div>`:''}
     <div class="row2">
-      <label class="fld"><span>Client</span><select id="q_client" ${j?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-      <label class="fld"><span>Due date</span><input id="i_due" type="date" value="${daysFromNow(14)}"></label>
+      <label class="fld"><span>Client</span><select id="q_client" ${j?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${TL.esc(c.name)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Due date</span><input id="i_due" type="date" value="${TL.daysFromNow(14)}"></label>
     </div>
-    <label class="fld"><span>Invoice title</span><input id="q_title" value="${j?esc(j.title):''}" placeholder="What's this invoice for?"></label>
+    <label class="fld"><span>Invoice title</span><input id="q_title" value="${j?TL.esc(j.title):''}" placeholder="What's this invoice for?"></label>
     <span style="display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin:6px 0 8px">Line items</span>
     <div id="q_items"></div>
     <button class="btn ghost sm" onclick="addItem()">＋ Add line item</button>
@@ -1264,25 +1131,25 @@ function newInvoice(preClient,fromJob){
 }
 function saveInvoice(status,fromJob){const title=document.getElementById('q_title').value.trim();if(!title){toast('Add a title');return;}
   const items=draftItems.filter(i=>i.d.trim()).map(i=>({d:i.d,q:+i.q||0,p:+i.p||0}));if(!items.length){toast('Add a line item');return;}
-  const inv={id:uid('i'),clientId:document.getElementById('q_client').value,jobId:fromJob||null,title,status,date:today,due:document.getElementById('i_due').value||daysFromNow(14),items};
+  const inv={id:TL.uid('i'),clientId:document.getElementById('q_client').value,jobId:fromJob||null,title,status,date:TL.today,due:document.getElementById('i_due').value||TL.daysFromNow(14),items};
   state.invoices.push(inv);closeModal();toast(status==='sent'?('Invoice sent'+(state.integrations.qbo?' · synced to QBO':'')):'Draft saved');go('invoices');invoiceDetail(inv.id);}
 
-function recordPayment(invId){const inv=state.invoices.find(i=>i.id===invId);const bal=invBalance(inv);
+function recordPayment(invId){const inv=state.invoices.find(i=>i.id===invId);const bal=TL.invBalance(inv);
   openModal(`<div class="mhead"><h3>Record payment</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    <div class="note">${esc(inv.title)} — balance due <b>${money(bal)}</b></div>
+    <div class="note">${TL.esc(inv.title)} — balance due <b>${TL.money(bal)}</b></div>
     <div class="row2">
       <label class="fld"><span>Amount</span><input id="pay_amt" type="number" step="any" value="${bal.toFixed(2)}"></label>
-      <label class="fld"><span>Date</span><input id="pay_date" type="date" value="${today}"></label>
+      <label class="fld"><span>Date</span><input id="pay_date" type="date" value="${TL.today}"></label>
     </div>
     <label class="fld"><span>Method</span><select id="pay_method"><option>Credit card (2.9% + 30¢)</option><option>ACH bank transfer (1%)</option><option>Tap to Pay</option><option>Cash</option><option>Check</option></select></label>
   </div>
-  <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="savePayment('${invId}')">Record ${money(bal)}</button></div>`);
+  <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="savePayment('${invId}')">Record ${TL.money(bal)}</button></div>`);
 }
 function savePayment(invId){const amt=+document.getElementById('pay_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
   const inv=state.invoices.find(i=>i.id===invId);
-  state.payments.push({id:uid('p'),invoiceId:invId,amount:amt,method:document.getElementById('pay_method').value,date:document.getElementById('pay_date').value||today});
-  if(invBalance(inv)<=0)inv.status='paid';
+  state.payments.push({id:TL.uid('p'),invoiceId:invId,amount:amt,method:document.getElementById('pay_method').value,date:document.getElementById('pay_date').value||TL.today});
+  if(TL.invBalance(inv)<=0)inv.status='paid';
   closeModal();toast('Payment recorded 🎉'+(state.integrations.qbo?' · synced to QBO':''));invoiceDetail(invId);}
 
 function delItem(coll,id){if(!confirm('Delete this? (demo only)'))return;state[coll]=state[coll].filter(x=>x.id!==id);toast('Deleted');go(coll==='quotes'?'quotes':coll==='jobs'?'schedule':'invoices');}
@@ -1312,8 +1179,8 @@ function openWorkspace(key){
   try{ localStorage.setItem(WS_ACTIVE_KEY, key); }catch(e){}
   let loaded=null;
   try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
-  if (loaded && loaded.state){ state = Object.assign(baseState(), loaded.state); UID = loaded.UID || UID; }
-  else state = ws.seed==='sample' ? seedState() : baseState();
+  if (loaded && loaded.state){ state = Object.assign(TL.baseState(), loaded.state); UID = loaded.UID || UID; }
+  else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
   document.getElementById('bizDot').textContent = (ws.name.trim()[0]||'A').toUpperCase();
   document.getElementById('bizName').textContent = ws.name;
   document.getElementById('bizTrade').textContent = ws.trade || 'Field Service';
@@ -1330,7 +1197,7 @@ function showLauncher(){
     <div class="lhead"><div class="lmark"><svg class="tl-mark is-md" viewBox="0 0 84 84" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg></div><h1>Tradeline</h1><p>The operating system for the trades. Run multiple businesses side by side — each keeps its own clients, jobs, money, plan and integrations, saved in this browser.</p><p style="margin-top:12px"><a href="index.html">← Back to Tradeline home</a></p></div>
     ${list.length?`<div class="bizgrid">${list.map(w=>`
       <div class="bizcard">
-        <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${esc((w.name.trim()[0]||'A').toUpperCase())}</span><div><h3>${esc(w.name)}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
+        <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${TL.esc((w.name.trim()[0]||'A').toUpperCase())}</span><div><h3>${TL.esc(w.name)}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
         <div class="actions"><button class="btn sm" onclick="openWorkspace('${w.key}')">Open →</button><button class="btn danger sm" onclick="deleteWorkspace('${w.key}')">Delete</button></div>
       </div>`).join('')}</div>`:''}
     <div class="launchform">
@@ -1354,7 +1221,7 @@ function hideLauncher(){ document.getElementById('launcher').style.display='none
 function createWorkspace(){
   const name=document.getElementById('ws_name').value.trim(); if(!name){ toast('Give the business a name'); return; }
   const seed=document.querySelector('#seedopt label.sel').dataset.seed;
-  const ws={ key:'w'+Date.now().toString(36)+Math.floor(Math.random()*1e4), name, trade:document.getElementById('ws_trade').value, seed, created:today };
+  const ws={ key:'w'+Date.now().toString(36)+Math.floor(Math.random()*1e4), name, trade:document.getElementById('ws_trade').value, seed, created:TL.today };
   const list=getWorkspaces(); list.push(ws); saveWorkspaces(list);
   openWorkspace(ws.key);
   toast('Welcome to '+name+' 🎉');
