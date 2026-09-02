@@ -127,6 +127,17 @@
   .launch{max-width:420px;margin:8vh auto;padding:0 20px;text-align:center}
   .launch .lmark{width:64px;height:64px;border-radius:16px;background:var(--card-2);display:grid;place-items:center;margin:0 auto 16px}
   .launch .lmark svg{width:36px;height:36px;fill:none;stroke:var(--green);stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:4px}
+  .pgrid .ph{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--card-2);border:1px solid var(--line)}
+  .pgrid .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .pgrid .addph{aspect-ratio:1;border-radius:10px;border:1px dashed var(--hair-2);display:flex;flex-direction:column;gap:4px;
+    align-items:center;justify-content:center;color:var(--muted);font-size:11.5px;font-weight:600;cursor:pointer}
+  .pgrid .addph span{font-size:22px;color:var(--green)}
+  .pview{position:fixed;inset:0;z-index:12;background:rgba(4,7,13,.94);display:none;flex-direction:column;padding:14px}
+  .pview.show{display:flex}
+  .pview img{flex:1;min-height:0;object-fit:contain;width:100%}
+  .pview .row{display:flex;gap:8px;padding-top:12px;padding-bottom:env(safe-area-inset-bottom)}
+
   .launch h2{color:var(--ink);font-size:22px;letter-spacing:-.02em;margin-bottom:8px}
   .launch p{font-size:13.5px;color:var(--muted);margin-bottom:20px}
   .bizbtn{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:13px;
@@ -154,6 +165,7 @@
 </nav>
 
 <div class="sheetwrap" id="sheetwrap"><div class="sheet" id="sheet"></div></div>
+<div class="pview" id="pview"></div>
 <div id="toast"></div>
 
 <script src="lib.js"></script>
@@ -258,11 +270,57 @@ function renderJob(id){
     <div class="sec">Checklist <span class="mono" style="text-transform:none;letter-spacing:0">(${done}/${total})</span></div>
     ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}" onclick="toggleChk('${id}',${idx})"><input type="checkbox" ${ck.done?'checked':''} onclick="event.stopPropagation();toggleChk('${id}',${idx})"><label>${TL.esc(ck.t)}</label></div>`).join('')}
 
+    <div class="sec">Photos <span class="mono" style="text-transform:none;letter-spacing:0">(${TL.jobPhotos(id).length})</span></div>
+    <div class="pgrid" id="pgrid">
+      <label class="addph"><span>⛶</span>Add photo<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhotos('${id}',this.files)"></label>
+    </div>
+
     <div class="sec">Change orders${coApp?` <span class="mono" style="text-transform:none;letter-spacing:0">(+${TL.money(coApp)} approved)</span>`:''}</div>
     ${cos.length?cos.map(co=>`<div class="corow"><div class="d"><b>${TL.esc(co.desc)}</b><span style="font-size:11.5px;color:var(--muted)">${TL.dfmt(co.date)}</span></div><span class="amt">+${TL.money(co.amount)}</span>${TL.statusPill(co.status)}</div>`).join('')
       :'<div class="m" style="font-size:13px;color:var(--faint);padding:2px 2px 6px">Scope grew? Log it before it gets eaten — the client approves from their portal.</div>'}
   </div>`;
+  fillPhotoGrid(id);
 }
+
+/* ---------- photos ---------- */
+async function addPhotos(jobId,files){
+  if(!files||!files.length)return;
+  const by=localStorage.getItem('tl-field-worker')||'Crew';
+  let n=0;
+  for(const f of files){
+    try{
+      const data=await TL.shrinkImage(f);
+      const p={id:TL.uid('ph'),jobId,name:f.name||'photo',by,date:TL.today};
+      await TL.photoDB.put(p.id,data);
+      state.photos.push(p);n++;
+    }catch(e){}
+  }
+  persist();
+  toast(n?n+' photo'+(n>1?'s':'')+' added ✓':'Could not read that photo');
+  renderJob(jobId);
+}
+function fillPhotoGrid(jobId){
+  const grid=document.getElementById('pgrid');if(!grid)return;
+  grid.insertAdjacentHTML('afterbegin',TL.jobPhotos(jobId).map(p=>`<div class="ph" onclick="photoView('${p.id}')"><img id="img_${p.id}" alt="${TL.esc(p.name)}"></div>`).join(''));
+  TL.jobPhotos(jobId).forEach(p=>TL.photoDB.get(p.id).then(d=>{const i=document.getElementById('img_'+p.id);if(i&&d)i.src=d;}).catch(()=>{}));
+}
+function photoView(pid){
+  const p=state.photos.find(x=>x.id===pid);if(!p)return;
+  const v=document.getElementById('pview');
+  v.innerHTML=`<img id="pv_img" alt="${TL.esc(p.name)}">
+    <div style="font-size:12px;color:var(--muted);padding-top:8px">${TL.esc(p.by)} · ${TL.dfmt(p.date)}</div>
+    <div class="row"><button class="btn danger" onclick="delPhoto('${pid}')">Delete</button><button class="btn sec" onclick="document.getElementById('pview').classList.remove('show')">Close</button></div>`;
+  v.classList.add('show');
+  TL.photoDB.get(pid).then(d=>{const i=document.getElementById('pv_img');if(i&&d)i.src=d;}).catch(()=>{});
+}
+function delPhoto(pid){
+  const p=state.photos.find(x=>x.id===pid);if(!p)return;
+  if(!confirm('Delete this photo?'))return;
+  state.photos=state.photos.filter(x=>x.id!==pid);
+  TL.photoDB.del(pid).catch(()=>{});
+  persist();document.getElementById('pview').classList.remove('show');toast('Photo deleted');renderJob(p.jobId);
+}
+
 function toggleChk(id,idx){const j=state.jobs.find(x=>x.id===id);j.checklist[idx].done=!j.checklist[idx].done;
   if(j.checklist.some(c=>c.done)&&j.status==='scheduled')j.status='in_progress';persist();renderJob(id);}
 function setJob(id,s){state.jobs.find(j=>j.id===id).status=s;persist();

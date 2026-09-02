@@ -151,6 +151,15 @@
   .p-slate{background:var(--slate-bg);color:var(--muted);border-color:var(--hair-2)}
   .p-purple{background:var(--tl-pro-bg);color:var(--tl-pro);border-color:rgba(216,192,138,.3)}
 
+  /* ---------- job photos ---------- */
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;margin-top:10px}
+  .pgrid .ph{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:var(--card-2);
+    border:1px solid var(--line);cursor:pointer}
+  .pgrid .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .pgrid .ph .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(4,7,13,.72);color:var(--tl-ink-2);
+    font-size:10.5px;padding:3px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .photoview img{width:100%;max-height:62vh;object-fit:contain;border-radius:10px;background:var(--card-2)}
+
   /* ---------- modals ---------- */
   .overlay{position:fixed;inset:0;background:rgba(3,6,12,.74);backdrop-filter:blur(3px);display:none;
     align-items:flex-start;justify-content:center;z-index:100;padding:40px 16px;overflow:auto}
@@ -749,12 +758,55 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j
     </div>
   </div>
   <div class="card" style="margin-top:14px">
+    <div class="detail-head"><div class="strong">Job photos <span class="tiny">(${TL.jobPhotos(id).length})</span></div>
+      <label class="btn sec sm" style="cursor:pointer">＋ Add photos<input type="file" accept="image/*" multiple hidden onchange="addPhotos('${id}',this.files,'Office')"></label></div>
+    ${TL.jobPhotos(id).length?`<div class="pgrid" id="pgrid"></div>`:'<div class="tiny">No photos yet. Crews add them from the field view; you can upload here too.</div>'}
+  </div>
+  <div class="card" style="margin-top:14px">
     <div class="detail-head"><div class="strong">Change orders ${cos.length?`<span class="tiny">(${cos.length} · ${TL.money(coApp)} approved)</span>`:''}</div><button class="btn sec sm" onclick="newCO('${id}')">＋ Add change order</button></div>
     ${cos.length?`<div class="tablewrap"><table><thead><tr><th>Change</th><th class="tiny">Date</th><th style="text-align:right">Amount</th><th>Status</th><th></th></tr></thead><tbody>${
       cos.map(co=>`<tr><td class="strong">${TL.esc(co.desc)}</td><td class="tiny">${TL.dfmt(co.date)}</td><td style="text-align:right" class="strong">+${TL.money(co.amount)}</td><td>${TL.statusPill(co.status)}</td><td style="text-align:right;white-space:nowrap">${co.status==='pending'?`<button class="btn sm" onclick="setCO('${co.id}','approved')">✓ Approve</button> <button class="btn sec sm" onclick="setCO('${co.id}','declined')">Decline</button>`:`<button class="btn danger sm" onclick="delCO('${co.id}')">Remove</button>`}</td></tr>`).join('')
     }</tbody></table></div><div class="tiny" style="margin-top:8px">Approved change orders roll into job costing and get pulled onto the invoice automatically. Pending ones show in the client's portal for one-tap approval.</div>`
     :'<div class="tiny">Scope grew mid-job? Log it here so it gets approved — and billed — instead of eaten.</div>'}
   </div>`;
+  fillPhotoGrid(id,'pgrid');
+}
+
+/* ---- JOB PHOTOS (metadata in state, image data in IndexedDB) ---- */
+async function addPhotos(jobId,files,by){
+  if(!files||!files.length)return;
+  let n=0;
+  for(const f of files){
+    try{
+      const data=await TL.shrinkImage(f);
+      const p={id:TL.uid('ph'),jobId,name:f.name||'photo',by:by||'Office',date:TL.today};
+      await TL.photoDB.put(p.id,data);
+      state.photos.push(p);n++;
+    }catch(e){}
+  }
+  persist();
+  if(n)toast(n+' photo'+(n>1?'s':'')+' added ✓');else toast('Could not read those files');
+  jobDetail(jobId);
+}
+function fillPhotoGrid(jobId,elId){
+  const grid=document.getElementById(elId);if(!grid)return;
+  grid.innerHTML=TL.jobPhotos(jobId).map(p=>`<div class="ph" onclick="photoView('${p.id}')" title="${TL.esc(p.name)}"><img id="img_${p.id}" alt="${TL.esc(p.name)}"><div class="cap">${TL.esc(p.by)} · ${TL.dfmt(p.date)}</div></div>`).join('');
+  TL.jobPhotos(jobId).forEach(p=>TL.photoDB.get(p.id).then(d=>{const i=document.getElementById('img_'+p.id);if(i&&d)i.src=d;}).catch(()=>{}));
+}
+function photoView(pid){
+  const p=state.photos.find(x=>x.id===pid);if(!p)return;
+  openModal(`<div class="mhead"><h3>${TL.esc(p.name)}</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="mbody photoview"><img id="pv_img" alt="${TL.esc(p.name)}"><div class="tiny" style="margin-top:8px">Added by ${TL.esc(p.by)} · ${TL.dfmt(p.date)}</div></div>
+  <div class="mfoot"><button class="btn danger sm" onclick="delPhoto('${pid}')">Delete photo</button><button class="btn sec" onclick="closeModal()">Close</button></div>`,true);
+  TL.photoDB.get(pid).then(d=>{const i=document.getElementById('pv_img');if(i&&d)i.src=d;}).catch(()=>{});
+}
+function delPhoto(pid){
+  const p=state.photos.find(x=>x.id===pid);if(!p)return;
+  if(!confirm('Delete this photo? (demo only)'))return;
+  state.photos=state.photos.filter(x=>x.id!==pid);
+  TL.photoDB.del(pid).catch(()=>{});
+  persist();closeModal();toast('Photo deleted');
+  jobDetail(p.jobId);
 }
 function newCO(jobId){
   openModal(`<div class="mhead"><h3>Add change order</h3><button class="x" onclick="closeModal()">×</button></div>

@@ -49,6 +49,49 @@ const jobLabor = jid => state.timesheets.filter(t=>t.jobId===jid).reduce((s,t)=>
 const jobExp = jid => state.expenses.filter(e=>e.jobId===jid).reduce((s,e)=>s+e.amount,0);
 const jobCOs = jid => state.changeOrders.filter(co=>co.jobId===jid);
 const coApprovedTotal = jid => jobCOs(jid).filter(co=>co.status==='approved').reduce((s,co)=>s+co.amount,0);
+const jobPhotos = jid => state.photos.filter(p=>p.jobId===jid);
+
+/* Photo image data lives in IndexedDB (too big for localStorage); state.photos
+   holds only metadata. Browser-only — guarded so jsdom tests can import lib.js. */
+const photoDB = (() => {
+  let dbp = null;
+  const open = () => {
+    if (!('indexedDB' in globalThis)) return Promise.reject(new Error('IndexedDB unavailable'));
+    if (!dbp) dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('tradeline-photos', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return dbp;
+  };
+  const tx = (mode, fn) => open().then(db => new Promise((res, rej) => {
+    const q = fn(db.transaction('photos', mode).objectStore('photos'));
+    q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+  }));
+  return {
+    put: (id, dataUrl) => tx('readwrite', s => s.put(dataUrl, id)),
+    get: id => tx('readonly', s => s.get(id)),
+    del: id => tx('readwrite', s => s.delete(id)),
+  };
+})();
+
+/* Downscale a photo file to a JPEG data URL (max 1280px long edge). Browser-only. */
+function shrinkImage(file, max = 1280, quality = 0.72) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      res(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src = url;
+  });
+}
 const pill = (txt,cls) => `<span class="pill ${cls}">${txt}</span>`;
 const statusPill = s => ({
   draft:pill('Draft','p-slate'), sent:pill('Sent','p-blue'), approved:pill('Approved','p-green'),
@@ -63,7 +106,7 @@ function baseState(){ return {
   addons:{ai:false, marketing:false, pipeline:false},
   extraUsers:0,
   integrations:{},
-  clients:[], requests:[], quotes:[], jobs:[], invoices:[], payments:[], timesheets:[], expenses:[], changeOrders:[],
+  clients:[], requests:[], quotes:[], jobs:[], invoices:[], payments:[], timesheets:[], expenses:[], changeOrders:[], photos:[],
   automations: [
     {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:false},
     {key:'a2', name:'Visit reminder', desc:'Text the client the day before a scheduled visit', on:false},
@@ -153,6 +196,7 @@ window.TL = {
   uid, money, iso, today, daysFromNow, dfmt, shortDate, esc,
   MONTHS, PLANS, RANK, ADDONS, FEAT, has,
   client, quoteTotal, invTotal, invPaid, invBalance, jobLabor, jobExp, jobCOs, coApprovedTotal,
+  jobPhotos, photoDB, shrinkImage,
   pill, statusPill, baseState, seedState,
   get state() { return state; },
   set state(s) { state = s; },

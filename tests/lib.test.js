@@ -244,3 +244,27 @@ describe('change orders', () => {
     expect(TL.statusPill('declined')).toContain('p-red');
   });
 });
+
+describe('job photos', () => {
+  it('baseState includes empty photos (migration-safe)', () => {
+    expect(TL.baseState().photos).toEqual([]);
+  });
+
+  it('jobPhotos filters metadata by job', () => {
+    TL.state = TL.baseState();
+    TL.state.photos = [
+      {id:'ph1', jobId:'j1', name:'a.jpg', by:'Crew', date:'2026-09-01'},
+      {id:'ph2', jobId:'j2', name:'b.jpg', by:'Office', date:'2026-09-01'},
+      {id:'ph3', jobId:'j1', name:'c.jpg', by:'Crew', date:'2026-09-01'},
+    ];
+    expect(TL.jobPhotos('j1')).toHaveLength(2);
+    expect(TL.jobPhotos('j2')).toHaveLength(1);
+    expect(TL.jobPhotos('j9')).toHaveLength(0);
+  });
+
+  it('photoDB rejects cleanly where IndexedDB is unavailable', async () => {
+    if (!('indexedDB' in globalThis)) {
+      await expect(TL.photoDB.get('x')).rejects.toThrow();
+    }
+  });
+});

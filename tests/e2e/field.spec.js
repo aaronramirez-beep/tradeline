@@ -61,6 +61,41 @@ test.describe('Tradeline Field (mobile)', () => {
     await expect(page.locator('text=Field-logged extra scope')).toBeVisible();
   });
 
+  test('crew can attach a job photo and it survives reload', async ({ page }) => {
+    await bootField(page);
+    await page.click('.jcard:has-text("Level 5 finish")');
+    // 1x1 red pixel PNG
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await page.setInputFiles('.addph input[type="file"]', { name: 'site.png', mimeType: 'image/png', buffer: png });
+    await expect(page.locator('.pgrid .ph')).toHaveCount(1);
+    await expect(page.locator('.sec:has-text("Photos") .mono')).toHaveText('(1)');
+    // metadata + image persist across a reload (localStorage + IndexedDB)
+    await page.reload();
+    await page.click('.jcard:has-text("Level 5 finish")');
+    await expect(page.locator('.pgrid .ph')).toHaveCount(1);
+    const src = await page.locator('.pgrid .ph img').getAttribute('src');
+    expect(src).toContain('data:image/jpeg');
+  });
+
+  test('field photo shows up in the office view', async ({ page }) => {
+    await bootField(page);
+    await page.click('.jcard:has-text("Level 5 finish")');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await page.setInputFiles('.addph input[type="file"]', { name: 'site.png', mimeType: 'image/png', buffer: png });
+    await expect(page.locator('.pgrid .ph')).toHaveCount(1);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('http://localhost:3456/app.html');
+    await page.click('[data-view="schedule"]');
+    await page.click('table tbody tr.click:has-text("Level 5 finish")');
+    await expect(page.locator('#pgrid .ph')).toHaveCount(1);
+  });
+
   test('PWA wiring: manifest and service worker are served', async ({ page, request }) => {
     const mf = await request.get('http://localhost:3456/manifest.webmanifest');
     expect(mf.ok()).toBeTruthy();
