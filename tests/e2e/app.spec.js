@@ -74,6 +74,28 @@ test.describe('TradeLine CRM', () => {
     }
   });
 
+  test('can add a change order to a job', async ({ page }) => {
+    await bootDemo(page);
+    await page.click('[data-view="schedule"]');
+    await page.click('table tbody tr.click >> nth=0');
+    await expect(page.locator('text=Change orders')).toBeVisible();
+    await page.click('button:has-text("Add change order")');
+    await page.fill('#co_desc', 'Extra closet shelving');
+    await page.fill('#co_amt', '425');
+    await page.click('button:has-text("Send for approval")');
+    await expect(page.locator('text=Extra closet shelving')).toBeVisible();
+    await expect(page.locator('.pill:has-text("Pending approval")').first()).toBeVisible();
+  });
+
+  test('approving a change order updates the approved total', async ({ page }) => {
+    await bootDemo(page);
+    await page.click('[data-view="schedule"]');
+    await page.click('table tbody tr.click:has-text("Level 5 finish")');
+    // Seeded job j1 has one pending CO ($640) and one approved ($1,850)
+    await page.click('button:has-text("✓ Approve")');
+    await expect(page.locator('text=$2,490.00 approved')).toBeVisible();
+  });
+
   test('invoice view shows financial data', async ({ page }) => {
     await bootDemo(page);
     await page.click('[data-view="invoices"]');

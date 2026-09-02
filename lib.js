@@ -47,11 +47,14 @@ const invPaid = inv => state.payments.filter(p=>p.invoiceId===inv.id).reduce((s,
 const invBalance = inv => invTotal(inv)-invPaid(inv);
 const jobLabor = jid => state.timesheets.filter(t=>t.jobId===jid).reduce((s,t)=>s+t.hours*t.rate,0);
 const jobExp = jid => state.expenses.filter(e=>e.jobId===jid).reduce((s,e)=>s+e.amount,0);
+const jobCOs = jid => state.changeOrders.filter(co=>co.jobId===jid);
+const coApprovedTotal = jid => jobCOs(jid).filter(co=>co.status==='approved').reduce((s,co)=>s+co.amount,0);
 const pill = (txt,cls) => `<span class="pill ${cls}">${txt}</span>`;
 const statusPill = s => ({
   draft:pill('Draft','p-slate'), sent:pill('Sent','p-blue'), approved:pill('Approved','p-green'),
   scheduled:pill('Scheduled','p-blue'), in_progress:pill('In progress','p-amber'), complete:pill('Complete','p-green'),
-  paid:pill('Paid','p-green'), overdue:pill('Overdue','p-red'), new:pill('New','p-amber'), converted:pill('Converted','p-green')
+  paid:pill('Paid','p-green'), overdue:pill('Overdue','p-red'), new:pill('New','p-amber'), converted:pill('Converted','p-green'),
+  pending:pill('Pending approval','p-amber'), declined:pill('Declined','p-red')
 }[s] || pill(s,'p-slate'));
 
 /* ============================ STATE ============================ */
@@ -60,7 +63,7 @@ function baseState(){ return {
   addons:{ai:false, marketing:false, pipeline:false},
   extraUsers:0,
   integrations:{},
-  clients:[], requests:[], quotes:[], jobs:[], invoices:[], payments:[], timesheets:[], expenses:[],
+  clients:[], requests:[], quotes:[], jobs:[], invoices:[], payments:[], timesheets:[], expenses:[], changeOrders:[],
   automations: [
     {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:false},
     {key:'a2', name:'Visit reminder', desc:'Text the client the day before a scheduled visit', on:false},
@@ -114,6 +117,10 @@ function seedState(){ const s = baseState(); Object.assign(s, {
     {id:'e2', jobId:'j2', desc:'Masking film, tape, sleeves', amount:86.40, date:daysFromNow(-4)},
     {id:'e3', jobId:'j1', desc:'Level 5 skim compound (pallet)', amount:1240.00, date:daysFromNow(-2)},
   ],
+  changeOrders: [
+    {id:'co1', jobId:'j1', desc:'Level 5 finish on unit 14 ceiling (added scope)', amount:1850, status:'approved', date:daysFromNow(-1)},
+    {id:'co2', jobId:'j1', desc:'Patch water-damaged drywall — unit 9 bath', amount:640, status:'pending', date:today},
+  ],
   automations: [
     {key:'a1', name:'Quote follow-up', desc:'Email + text the client if a quote sits unanswered for 3 days', on:true},
     {key:'a2', name:'Visit reminder', desc:'Text the client the day before a scheduled visit', on:true},
@@ -145,7 +152,7 @@ function setState(s) { state = s; }
 window.TL = {
   uid, money, iso, today, daysFromNow, dfmt, shortDate, esc,
   MONTHS, PLANS, RANK, ADDONS, FEAT, has,
-  client, quoteTotal, invTotal, invPaid, invBalance, jobLabor, jobExp,
+  client, quoteTotal, invTotal, invPaid, invBalance, jobLabor, jobExp, jobCOs, coApprovedTotal,
   pill, statusPill, baseState, seedState,
   get state() { return state; },
   set state(s) { state = s; },

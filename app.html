@@ -683,6 +683,7 @@ views.hub=function(sel){
   const qs=state.quotes.filter(q=>q.clientId===cid&&q.status==='sent');
   const is=state.invoices.filter(i=>i.clientId===cid&&TL.invBalance(i)>0);
   const js=state.jobs.filter(j=>j.clientId===cid&&j.status!=='complete');
+  const pcos=state.changeOrders.filter(co=>co.status==='pending'&&state.jobs.some(j=>j.id===co.jobId&&j.clientId===cid));
   el().innerHTML=`<div class="hintbar">◱ This is the <b>customer-facing portal</b> — what ${TL.esc(c.name)} sees when they click a link you text them. Approve a quote or pay an invoice here and watch it update in your back office.</div>
   <div style="max-width:640px;margin:0 auto 14px"><label class="fld"><span>Preview as client</span><select onchange="go('hub',this.value)">${state.clients.map(x=>`<option value="${x.id}" ${x.id===cid?'selected':''}>${TL.esc(x.name)}</option>`).join('')}</select></label></div>
   <div class="hub">
@@ -690,6 +691,7 @@ views.hub=function(sel){
     <div class="hb">
       <div class="sec-title">Quotes waiting for your approval</div>
       ${qs.length?qs.map(q=>`<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${TL.esc(q.title)}</div><div class="tiny">Quoted ${TL.dfmt(q.date)}</div></div><div class="strong">${TL.money(TL.quoteTotal(q))}</div></div><button class="btn sm" onclick="hubApprove('${q.id}','${cid}')">✓ Approve quote</button></div>`).join(''):'<div class="tiny" style="margin-bottom:6px">Nothing waiting.</div>'}
+      ${pcos.length?`<div class="sec-title">Change orders to approve</div>${pcos.map(co=>{const j=state.jobs.find(x=>x.id===co.jobId);return `<div class="card" style="margin-bottom:10px"><div class="detail-head"><div><div class="strong">${TL.esc(co.desc)}</div><div class="tiny">On: ${TL.esc(j.title)}</div></div><div class="strong">+${TL.money(co.amount)}</div></div><button class="btn sm" onclick="hubApproveCO('${co.id}','${cid}')">✓ Approve change</button></div>`;}).join('')}`:''}
       <div class="sec-title">Upcoming visits</div>
       ${js.length?js.map(j=>`<div class="chk"><span>▦</span><label><b>${TL.dfmt(j.date)}</b> — ${TL.esc(j.title)}</label></div>`).join(''):'<div class="tiny">No visits scheduled.</div>'}
       <div class="sec-title">Invoices due</div>
@@ -698,6 +700,7 @@ views.hub=function(sel){
   </div>`;
 };
 function hubApprove(qid,cid){setQuoteSilent(qid,'approved');toast('Client approved the quote ✓ — check your Quotes list');go('hub',cid);}
+function hubApproveCO(coId,cid){state.changeOrders.find(x=>x.id===coId).status='approved';toast('Client approved the change order ✓ — it will land on the invoice');go('hub',cid);}
 function setQuoteSilent(id,s){state.quotes.find(q=>q.id===id).status=s;}
 function hubPay(iid,cid){const inv=state.invoices.find(i=>i.id===iid);
   state.payments.push({id:TL.uid('p'),invoiceId:iid,amount:TL.invBalance(inv),method:'Credit card (client hub)',date:TL.today});
@@ -716,6 +719,7 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j
   const steps=['scheduled','in_progress','complete'];const si=steps.indexOf(j.status);
   const inv=state.invoices.find(i=>i.jobId===id);
   const labor=TL.jobLabor(id), exp=TL.jobExp(id);
+  const cos=TL.jobCOs(id), coApp=TL.coApprovedTotal(id);
   el().innerHTML=`<div class="back" onclick="go('schedule')">← Schedule</div>
   <div class="detail-head"><div><h2 style="font-size:22px">${TL.esc(j.title)}</h2><div class="tiny">${j.id.toUpperCase()} · ${TL.esc(c.name)}</div></div><div>${TL.statusPill(j.status)}</div></div>
   <div class="flow">${steps.map((s,i)=>`<div class="step ${i<=si?'done':''}"><span class="n">${i<=si?'✓':i+1}</span>${({scheduled:'Scheduled',in_progress:'In progress',complete:'Complete'})[s]}</div>${i<2?'<span class="arw"></span>':''}`).join('')}</div>
@@ -726,6 +730,7 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j
     <div><div class="k">Source</div><div class="v">${j.quoteId?j.quoteId.toUpperCase()+' (quote)':'Direct'}</div></div>
     ${TL.has('timesheets')?`<div><div class="k">Labor logged</div><div class="v">${TL.money(labor)}</div></div>`:''}
     ${TL.has('expenses')?`<div><div class="k">Expenses</div><div class="v">${TL.money(exp)}</div></div>`:''}
+    ${coApp?`<div><div class="k">Change orders</div><div class="v">+${TL.money(coApp)}</div></div>`:''}
   </div>
   ${state.integrations.companycam?'<div class="note">📷 CompanyCam photo feed attached to this job.</div>':''}
   <div class="grid cards2" style="align-items:start">
@@ -742,8 +747,35 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j
       ${TL.has('timesheets')?`<div style="margin-top:12px"><button class="btn sec sm" onclick="newTime('${id}')">⏱ Log crew time</button> <button class="btn sec sm" onclick="newExpense('${id}')">⌥ Add expense</button></div>`:''}
       <div style="margin-top:14px"><button class="btn danger sm" onclick="delItem('jobs','${id}')">Delete job</button></div>
     </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="detail-head"><div class="strong">Change orders ${cos.length?`<span class="tiny">(${cos.length} · ${TL.money(coApp)} approved)</span>`:''}</div><button class="btn sec sm" onclick="newCO('${id}')">＋ Add change order</button></div>
+    ${cos.length?`<div class="tablewrap"><table><thead><tr><th>Change</th><th class="tiny">Date</th><th style="text-align:right">Amount</th><th>Status</th><th></th></tr></thead><tbody>${
+      cos.map(co=>`<tr><td class="strong">${TL.esc(co.desc)}</td><td class="tiny">${TL.dfmt(co.date)}</td><td style="text-align:right" class="strong">+${TL.money(co.amount)}</td><td>${TL.statusPill(co.status)}</td><td style="text-align:right;white-space:nowrap">${co.status==='pending'?`<button class="btn sm" onclick="setCO('${co.id}','approved')">✓ Approve</button> <button class="btn sec sm" onclick="setCO('${co.id}','declined')">Decline</button>`:`<button class="btn danger sm" onclick="delCO('${co.id}')">Remove</button>`}</td></tr>`).join('')
+    }</tbody></table></div><div class="tiny" style="margin-top:8px">Approved change orders roll into job costing and get pulled onto the invoice automatically. Pending ones show in the client's portal for one-tap approval.</div>`
+    :'<div class="tiny">Scope grew mid-job? Log it here so it gets approved — and billed — instead of eaten.</div>'}
   </div>`;
 }
+function newCO(jobId){
+  openModal(`<div class="mhead"><h3>Add change order</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="mbody">
+    <div class="note">Extra scope the client asked for (or the job revealed). It starts <b>pending</b> — the client approves it in their portal, or you can approve it on the spot.</div>
+    <label class="fld"><span>What changed</span><input id="co_desc" placeholder="e.g. Patch water-damaged drywall — unit 9 bath"></label>
+    <div class="row2">
+      <label class="fld"><span>Amount</span><input id="co_amt" type="number" step="any" placeholder="0.00"></label>
+      <label class="fld"><span>Date</span><input id="co_date" type="date" value="${TL.today}"></label>
+    </div>
+  </div>
+  <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" onclick="saveCO('${jobId}','approved')">Save approved (verbal OK)</button><button class="btn" onclick="saveCO('${jobId}','pending')">Send for approval</button></div>`);
+}
+function saveCO(jobId,status){const d=document.getElementById('co_desc').value.trim();if(!d){toast('Describe the change');return;}
+  const amt=+document.getElementById('co_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
+  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d,amount:amt,status,date:document.getElementById('co_date').value||TL.today});
+  closeModal();toast(status==='pending'?'Change order sent to client for approval':'Change order approved ✓');jobDetail(jobId);}
+function setCO(coId,status){const co=state.changeOrders.find(x=>x.id===coId);co.status=status;
+  toast(status==='approved'?'Change order approved ✓ — it will land on the invoice':'Change order declined');jobDetail(co.jobId);}
+function delCO(coId){const co=state.changeOrders.find(x=>x.id===coId);if(!confirm('Remove this change order? (demo only)'))return;
+  state.changeOrders=state.changeOrders.filter(x=>x.id!==coId);toast('Removed');jobDetail(co.jobId);}
 function toggleChk(id,idx){const j=state.jobs.find(x=>x.id===id);j.checklist[idx].done=!j.checklist[idx].done;
   if(j.checklist.some(c=>c.done)&&j.status==='scheduled')j.status='in_progress';jobDetail(id);}
 function setJob(id,s){state.jobs.find(j=>j.id===id).status=s;
@@ -926,7 +958,7 @@ function simCall(){
 views.reports=function(){
   const rows=state.jobs.map(j=>{
     const q=j.quoteId?state.quotes.find(x=>x.id===j.quoteId):null;
-    const quoted=q?TL.quoteTotal(q):0;
+    const quoted=(q?TL.quoteTotal(q):0)+TL.coApprovedTotal(j.id);
     const invd=state.invoices.filter(i=>i.jobId===j.id).reduce((s,i)=>s+TL.invTotal(i),0);
     const labor=TL.jobLabor(j.id), exp=TL.jobExp(j.id);
     const rev = invd||quoted; const profit=rev-labor-exp;
@@ -1112,10 +1144,14 @@ function newInvoice(preClient,fromJob){
   const j=fromJob?state.jobs.find(x=>x.id===fromJob):null;
   const q=j&&j.quoteId?state.quotes.find(x=>x.id===j.quoteId):null;
   const selClient=j?j.clientId:(preClient||state.clients[0].id);
+  const jobCOs = j?state.changeOrders.filter(co=>co.jobId===j.id&&co.status==='approved'):[];
   draftItems = q?q.items.map(i=>({...i})):[{d:'',q:1,p:0}];
+  if(jobCOs.length&&!q)draftItems=[];
+  jobCOs.forEach(co=>draftItems.push({d:'Change order — '+co.desc,q:1,p:co.amount}));
+  if(!draftItems.length)draftItems=[{d:'',q:1,p:0}];
   openModal(`<div class="mhead"><h3>${j?'Invoice from job':'New invoice'}</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="mbody">
-    ${q?`<div class="note">Line items pulled from quote <b>${q.id.toUpperCase()}</b>. Edit before sending.</div>`:''}
+    ${q?`<div class="note">Line items pulled from quote <b>${q.id.toUpperCase()}</b>${jobCOs.length?` + <b>${jobCOs.length} approved change order${jobCOs.length>1?'s':''}</b>`:''}. Edit before sending.</div>`:jobCOs.length?`<div class="note">Includes <b>${jobCOs.length} approved change order${jobCOs.length>1?'s':''}</b> from this job.</div>`:''}
     <div class="row2">
       <label class="fld"><span>Client</span><select id="q_client" ${j?'disabled':''}>${state.clients.map(c=>`<option value="${c.id}" ${c.id===selClient?'selected':''}>${TL.esc(c.name)}</option>`).join('')}</select></label>
       <label class="fld"><span>Due date</span><input id="i_due" type="date" value="${TL.daysFromNow(14)}"></label>
@@ -1152,7 +1188,9 @@ function savePayment(invId){const amt=+document.getElementById('pay_amt').value|
   if(TL.invBalance(inv)<=0)inv.status='paid';
   closeModal();toast('Payment recorded 🎉'+(state.integrations.qbo?' · synced to QBO':''));invoiceDetail(invId);}
 
-function delItem(coll,id){if(!confirm('Delete this? (demo only)'))return;state[coll]=state[coll].filter(x=>x.id!==id);toast('Deleted');go(coll==='quotes'?'quotes':coll==='jobs'?'schedule':'invoices');}
+function delItem(coll,id){if(!confirm('Delete this? (demo only)'))return;state[coll]=state[coll].filter(x=>x.id!==id);
+  if(coll==='jobs')state.changeOrders=state.changeOrders.filter(co=>co.jobId!==id);
+  toast('Deleted');go(coll==='quotes'?'quotes':coll==='jobs'?'schedule':'invoices');}
 
 /* clients view needs a nav entry? Clients accessible from requests/quotes; add to Sales group dynamically */
 NAVDEF[1][1].splice(1,0,['clients',ICO.clients,'Clients']);

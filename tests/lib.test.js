@@ -203,3 +203,44 @@ describe('statusPill', () => {
     expect(html).toContain('p-slate');
   });
 });
+
+describe('change orders', () => {
+  beforeEach(() => {
+    TL.state = TL.baseState();
+    TL.state.changeOrders = [
+      {id:'co1', jobId:'j1', desc:'Extra ceiling', amount:1850, status:'approved', date:'2026-08-01'},
+      {id:'co2', jobId:'j1', desc:'Water damage patch', amount:640, status:'pending', date:'2026-08-02'},
+      {id:'co3', jobId:'j1', desc:'Declined extra', amount:300, status:'declined', date:'2026-08-02'},
+      {id:'co4', jobId:'j2', desc:'Other job CO', amount:500, status:'approved', date:'2026-08-03'},
+    ];
+  });
+
+  it('jobCOs filters by job', () => {
+    expect(TL.jobCOs('j1')).toHaveLength(3);
+    expect(TL.jobCOs('j2')).toHaveLength(1);
+    expect(TL.jobCOs('j9')).toHaveLength(0);
+  });
+
+  it('coApprovedTotal sums only approved COs for the job', () => {
+    expect(TL.coApprovedTotal('j1')).toBe(1850);
+    expect(TL.coApprovedTotal('j2')).toBe(500);
+    expect(TL.coApprovedTotal('j9')).toBe(0);
+  });
+
+  it('baseState includes empty changeOrders (migration-safe)', () => {
+    expect(TL.baseState().changeOrders).toEqual([]);
+  });
+
+  it('seedState includes sample change orders tied to real jobs', () => {
+    const s = TL.seedState();
+    expect(s.changeOrders.length).toBeGreaterThan(0);
+    const jobIds = new Set(s.jobs.map(j => j.id));
+    for (const co of s.changeOrders) expect(jobIds.has(co.jobId)).toBe(true);
+  });
+
+  it('statusPill knows pending and declined', () => {
+    expect(TL.statusPill('pending')).toContain('Pending approval');
+    expect(TL.statusPill('pending')).toContain('p-amber');
+    expect(TL.statusPill('declined')).toContain('p-red');
+  });
+});
