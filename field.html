@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tradeline Field — today's jobs in your pocket</title>
+<meta name="description" content="Tradeline's field view: the crew-facing app. Today's jobs, checklists, time, materials and change orders — from the truck.">
+<meta name="theme-color" content="#0A0F1A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tradeline">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 84'%3E%3Crect width='84' height='84' rx='19' fill='%230E1521'/%3E%3Cg fill='none' stroke='%2300D2A6' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="brand.css">
+<style>
+  /* ============================================================
+     Tradeline Field — mobile crew surface
+     Palette & type from brand.css. One accent, big targets.
+     ============================================================ */
+  :root{
+    --green:var(--tl-signal); --ink:var(--tl-ink); --muted:var(--tl-muted);
+    --card:var(--tl-card); --card-2:var(--tl-card-2); --line:var(--tl-hairline); --hair-2:var(--tl-hairline-2);
+    --amber:var(--tl-amber); --red:var(--tl-red); --faint:var(--tl-faint);
+    --on-accent:#04231C;
+    --nav-h:64px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark}
+  body{font-family:var(--tl-body);background:var(--tl-navy);color:var(--tl-ink-2);font-size:15px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:var(--tl-mono,'JetBrains Mono',monospace)}
+
+  .topbar{position:sticky;top:0;z-index:5;background:rgba(10,15,26,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+    display:flex;align-items:center;gap:10px}
+  .topbar .mark{width:30px;height:30px;border-radius:8px;background:var(--card-2);display:grid;place-items:center;flex:none}
+  .topbar .mark svg{width:18px;height:18px;fill:none;stroke:var(--green);stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+  .topbar h1{font-size:15.5px;color:var(--ink);font-weight:700;letter-spacing:-.01em;flex:1;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .sub{display:block;font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+  .topbar .sw{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;flex:none;padding:8px 0 8px 8px}
+
+  .wrap{padding:14px 16px 28px;max-width:560px;margin:0 auto}
+  .sec{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:18px 2px 8px}
+  .sec:first-child{margin-top:2px}
+
+  .jcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer}
+  .jcard:active{border-color:var(--hair-2)}
+  .jcard .t{font-weight:700;color:var(--ink);font-size:15px;margin-bottom:2px}
+  .jcard .m{font-size:12.5px;color:var(--muted)}
+  .jcard .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+  .bar{height:5px;border-radius:3px;background:var(--card-2);overflow:hidden;flex:1}
+  .bar i{display:block;height:100%;border-radius:3px;background:var(--green)}
+
+  .pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+  .p-green{background:var(--tl-ok-bg);color:var(--tl-ok)} .p-amber{background:var(--tl-amber-bg);color:var(--tl-amber)}
+  .p-red{background:var(--tl-red-bg);color:var(--tl-red)} .p-blue{background:var(--tl-info-bg);color:var(--tl-info)}
+  .p-slate{background:var(--tl-neutral-bg);color:var(--tl-neutral)}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;border:none;border-radius:12px;
+    background:var(--green);color:var(--on-accent);font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;padding:12px 16px}
+  .btn:active{background:var(--tl-signal-d)}
+  .btn.sec{background:var(--card-2);color:var(--ink);border:1px solid var(--hair-2)}
+  .btn.ghost{background:transparent;border:1px dashed var(--hair-2);color:var(--muted);font-weight:600}
+  .btn.danger{background:var(--tl-red-bg);color:var(--red)}
+  .btn:disabled{opacity:.5}
+
+  .back{color:var(--muted);font-size:13.5px;cursor:pointer;padding:2px 0 12px;display:inline-block}
+  .krow{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:8px;min-height:48px}
+  .krow .ic{flex:none;font-size:16px;width:24px;text-align:center}
+  .krow .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+  .krow .v{font-size:14px;color:var(--ink);font-weight:600;word-break:break-word}
+  .krow .go{margin-left:auto;color:var(--faint);flex:none}
+
+  .chk{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:13px 14px;margin-bottom:8px;cursor:pointer;min-height:52px}
+  .chk input{width:22px;height:22px;accent-color:var(--green);flex:none}
+  .chk label{flex:1;font-size:14.5px;color:var(--ink);cursor:pointer}
+  .chk.done label{color:var(--faint);text-decoration:line-through}
+
+  .qgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:4px 0 8px}
+  .qgrid .btn{min-height:58px;flex-direction:column;gap:3px;font-size:12.5px;font-weight:600;padding:8px 4px}
+  .qgrid .btn span{font-size:18px}
+
+  .corow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:8px}
+  .corow .d{flex:1;min-width:0}.corow .d b{display:block;font-size:13.5px;color:var(--ink);font-weight:600}
+  .corow .amt{font-weight:700;color:var(--ink);white-space:nowrap}
+
+  .note{background:var(--tl-info-bg);border:1px solid var(--line);color:var(--tl-info);border-radius:12px;
+    padding:11px 13px;font-size:13px;margin:8px 0}
+  .note.ok{background:var(--tl-ok-bg);color:var(--tl-ok)}
+  .empty{color:var(--faint);font-size:13.5px;text-align:center;padding:26px 12px}
+
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:rgba(10,15,26,.96);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .nav button{flex:1;min-height:var(--nav-h);background:none;border:none;color:var(--muted);font-family:inherit;
+    font-size:11px;font-weight:600;letter-spacing:.03em;cursor:pointer;display:flex;flex-direction:column;gap:3px;
+    align-items:center;justify-content:center}
+  .nav button span{font-size:19px;line-height:1}
+  .nav button.on{color:var(--green)}
+
+  .sheetwrap{position:fixed;inset:0;z-index:10;background:rgba(4,7,13,.62);display:none;align-items:flex-end}
+  .sheetwrap.show{display:flex}
+  .sheet{background:var(--card);border:1px solid var(--hair-2);border-bottom:none;border-radius:18px 18px 0 0;width:100%;
+    max-width:560px;margin:0 auto;padding:8px 18px calc(18px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto}
+  .sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--hair-2);margin:4px auto 12px}
+  .sheet h3{font-size:16.5px;color:var(--ink);margin-bottom:12px}
+  .fld{display:block;margin-bottom:12px}
+  .fld span{display:block;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+  .fld input,.fld select{width:100%;min-height:46px;background:var(--tl-graphite);border:1px solid var(--hair-2);border-radius:11px;
+    color:var(--ink);font-family:inherit;font-size:15px;padding:10px 13px;outline:none}
+  .fld input:focus,.fld select:focus{border-color:var(--green)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .sfoot{display:grid;gap:8px;margin-top:6px}
+
+  #toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);
+    background:var(--tl-graphite);border:1px solid var(--hair-2);color:var(--ink);padding:11px 18px;border-radius:12px;
+    font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:20;white-space:nowrap;max-width:92vw;
+    overflow:hidden;text-overflow:ellipsis}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .launch{max-width:420px;margin:8vh auto;padding:0 20px;text-align:center}
+  .launch .lmark{width:64px;height:64px;border-radius:16px;background:var(--card-2);display:grid;place-items:center;margin:0 auto 16px}
+  .launch .lmark svg{width:36px;height:36px;fill:none;stroke:var(--green);stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+  .launch h2{color:var(--ink);font-size:22px;letter-spacing:-.02em;margin-bottom:8px}
+  .launch p{font-size:13.5px;color:var(--muted);margin-bottom:20px}
+  .bizbtn{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:13px;
+    padding:14px;margin-bottom:9px;cursor:pointer;font-family:inherit;text-align:left}
+  .bizbtn .bd{width:36px;height:36px;border-radius:10px;background:var(--tl-signal-t);color:var(--green);display:grid;
+    place-items:center;font-weight:800;flex:none}
+  .bizbtn b{display:block;color:var(--ink);font-size:14.5px}
+  .bizbtn i{font-style:normal;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar" style="display:none">
+  <div class="mark"><svg viewBox="0 0 84 84" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg></div>
+  <h1 id="wsName">Tradeline<span class="sub">Field view</span></h1>
+  <span class="sw" onclick="showPicker()">⇄ Switch</span>
+</div>
+
+<div id="main"></div>
+
+<nav class="nav" id="nav" style="display:none">
+  <button id="nav_jobs" class="on" onclick="go('jobs')"><span>▦</span>Jobs</button>
+  <button id="nav_time" onclick="quickTime()"><span>⏱</span>Log time</button>
+  <button onclick="location.href='app.html'"><span>⌂</span>Office</button>
+</nav>
+
+<div class="sheetwrap" id="sheetwrap"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script src="lib.js"></script>
+<script>
+/* ---------- shared persistence (same keys as app.html) ---------- */
+const WS_LIST_KEY='arkhub-workspaces', WS_ACTIVE_KEY='arkhub-active';
+let activeWs=null, view='jobs', curJob=null;
+function getWorkspaces(){ try{ return JSON.parse(localStorage.getItem(WS_LIST_KEY))||[] }catch(e){ return [] } }
+function saveWorkspaces(w){ try{ localStorage.setItem(WS_LIST_KEY, JSON.stringify(w)); }catch(e){} }
+function wsDataKey(k){ return 'arkhub-ws-'+k; }
+function persist(){ if(!activeWs||!state) return; try{ localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state})); }catch(e){} }
+
+function openWorkspace(key){
+  const ws=getWorkspaces().find(w=>w.key===key); if(!ws) return;
+  activeWs=ws; try{ localStorage.setItem(WS_ACTIVE_KEY,key); }catch(e){}
+  let loaded=null; try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
+  if(loaded&&loaded.state){ state=Object.assign(TL.baseState(),loaded.state); UID=loaded.UID||UID; }
+  else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
+  document.getElementById('wsName').innerHTML=`${TL.esc(ws.name)}<span class="sub">Field view · ${TL.esc(ws.trade||'Field Service')}</span>`;
+  document.getElementById('topbar').style.display='flex';
+  document.getElementById('nav').style.display='flex';
+  persist(); go('jobs');
+}
+function createSample(){
+  const ws={ key:'w'+Date.now().toString(36)+Math.floor(Math.random()*1e4), name:'Sample Finishing Co.', trade:'Painting & finishing', seed:'sample', created:TL.today };
+  saveWorkspaces([...getWorkspaces(),ws]); openWorkspace(ws.key);
+}
+function showPicker(){
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('nav').style.display='none';
+  const list=getWorkspaces();
+  el().innerHTML=`<div class="launch">
+    <div class="lmark"><svg viewBox="0 0 84 84" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg></div>
+    <h2>Tradeline Field</h2>
+    <p>The crew side of Tradeline — today's jobs, checklists, time, materials and change orders. Data lives in this browser; the Office view is the full back office.</p>
+    ${list.map(w=>`<button class="bizbtn" onclick="openWorkspace('${w.key}')"><span class="bd">${TL.esc((w.name.trim()[0]||'A').toUpperCase())}</span><span style="flex:1"><b>${TL.esc(w.name)}</b><i>${TL.esc(w.trade||'')} · ${w.seed==='sample'?'sample data':'started blank'}</i></span><span style="color:var(--faint)">→</span></button>`).join('')}
+    <button class="btn ${list.length?'ghost':''}" onclick="createSample()" style="margin-top:6px">＋ Try with a sample company</button>
+    <p style="margin-top:18px"><a href="index.html" style="text-decoration:underline;color:var(--muted)">← Tradeline home</a></p>
+  </div>`;
+}
+
+/* ---------- shell ---------- */
+const el=()=>document.getElementById('main');
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
+function openSheet(html){document.getElementById('sheet').innerHTML='<div class="grab"></div>'+html;document.getElementById('sheetwrap').classList.add('show');}
+function closeSheet(){document.getElementById('sheetwrap').classList.remove('show');}
+document.getElementById('sheetwrap').addEventListener('click',e=>{if(e.target.id==='sheetwrap')closeSheet();});
+function go(v,arg){view=v;document.getElementById('nav_jobs').classList.toggle('on',v==='jobs'||v==='job');
+  if(v==='jobs')renderJobs(); else if(v==='job'){curJob=arg||curJob;renderJob(curJob);} window.scrollTo(0,0);}
+
+/* ---------- jobs list ---------- */
+function jcard(j){const c=TL.client(j.clientId);const done=j.checklist.filter(x=>x.done).length,total=j.checklist.length;
+  return `<div class="jcard" onclick="go('job','${j.id}')">
+    <div class="t">${TL.esc(j.title)}</div>
+    <div class="m">${TL.esc(c.name)} · ${TL.dfmt(j.date)} · ${TL.esc(j.crew)}</div>
+    <div class="row"><div class="bar"><i style="width:${total?Math.round(done/total*100):0}%"></i></div><span class="m mono">${done}/${total}</span>${TL.statusPill(j.status)}</div>
+  </div>`;}
+function renderJobs(){
+  const js=[...state.jobs].sort((a,b)=>a.date.localeCompare(b.date));
+  const active=js.filter(j=>j.status==='in_progress');
+  const today=js.filter(j=>j.status==='scheduled'&&j.date<=TL.today);
+  const up=js.filter(j=>j.status==='scheduled'&&j.date>TL.today);
+  const done=js.filter(j=>j.status==='complete');
+  el().innerHTML=`<div class="wrap">
+    ${js.length?'':'<div class="empty">No jobs on the board yet.<br>Jobs are created in the Office view — approve a quote or schedule one there.</div>'}
+    ${active.length?`<div class="sec">On site now</div>${active.map(jcard).join('')}`:''}
+    ${today.length?`<div class="sec">Due to start</div>${today.map(jcard).join('')}`:''}
+    ${up.length?`<div class="sec">Coming up</div>${up.map(jcard).join('')}`:''}
+    ${done.length?`<div class="sec">Done</div>${done.map(jcard).join('')}`:''}
+  </div>`;
+}
+
+/* ---------- job detail ---------- */
+function renderJob(id){
+  const j=state.jobs.find(x=>x.id===id); if(!j){go('jobs');return;}
+  const c=TL.client(j.clientId);
+  const done=j.checklist.filter(x=>x.done).length,total=j.checklist.length;
+  const cos=TL.jobCOs(id), coApp=TL.coApprovedTotal(id);
+  const inv=state.invoices.find(i=>i.jobId===id);
+  el().innerHTML=`<div class="wrap">
+    <span class="back" onclick="go('jobs')">← All jobs</span>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:4px">
+      <h2 style="font-size:19px;color:var(--ink);letter-spacing:-.01em">${TL.esc(j.title)}</h2>${TL.statusPill(j.status)}
+    </div>
+    <div class="m" style="font-size:13px;color:var(--muted);margin-bottom:14px">${TL.esc(c.name)} · ${TL.dfmt(j.date)} · ${TL.esc(j.crew)}</div>
+
+    ${j.status==='scheduled'?`<button class="btn" onclick="setJob('${id}','in_progress')" style="margin-bottom:10px">▶ Start job — crew on site</button>`:''}
+    ${j.status==='in_progress'?`<button class="btn" onclick="setJob('${id}','complete')" style="margin-bottom:10px">✓ Mark job complete</button>`:''}
+    ${j.status==='complete'?`<div class="note ok">✓ Done${inv?` — invoiced (${inv.id.toUpperCase()})`:' — the office can invoice it now'}.</div>`:''}
+
+    <a class="krow" href="https://maps.google.com/?q=${encodeURIComponent(c.address||'')}" target="_blank" rel="noopener">
+      <span class="ic">◎</span><span style="flex:1"><span class="k">Site</span><div class="v">${TL.esc(c.address||'—')}</div></span><span class="go">↗</span></a>
+    <a class="krow" href="tel:${TL.esc((c.phone||'').replace(/[^+\d]/g,''))}">
+      <span class="ic">✆</span><span style="flex:1"><span class="k">${TL.esc(c.contact||c.name)}</span><div class="v">${TL.esc(c.phone||'—')}</div></span><span class="go">↗</span></a>
+
+    <div class="qgrid">
+      <button class="btn sec" onclick="sheetTime('${id}')"><span>⏱</span>Log time</button>
+      <button class="btn sec" onclick="sheetExpense('${id}')"><span>⌥</span>Materials</button>
+      <button class="btn sec" onclick="sheetCO('${id}')"><span>±</span>Change order</button>
+    </div>
+
+    <div class="sec">Checklist <span class="mono" style="text-transform:none;letter-spacing:0">(${done}/${total})</span></div>
+    ${j.checklist.map((ck,idx)=>`<div class="chk ${ck.done?'done':''}" onclick="toggleChk('${id}',${idx})"><input type="checkbox" ${ck.done?'checked':''} onclick="event.stopPropagation();toggleChk('${id}',${idx})"><label>${TL.esc(ck.t)}</label></div>`).join('')}
+
+    <div class="sec">Change orders${coApp?` <span class="mono" style="text-transform:none;letter-spacing:0">(+${TL.money(coApp)} approved)</span>`:''}</div>
+    ${cos.length?cos.map(co=>`<div class="corow"><div class="d"><b>${TL.esc(co.desc)}</b><span style="font-size:11.5px;color:var(--muted)">${TL.dfmt(co.date)}</span></div><span class="amt">+${TL.money(co.amount)}</span>${TL.statusPill(co.status)}</div>`).join('')
+      :'<div class="m" style="font-size:13px;color:var(--faint);padding:2px 2px 6px">Scope grew? Log it before it gets eaten — the client approves from their portal.</div>'}
+  </div>`;
+}
+function toggleChk(id,idx){const j=state.jobs.find(x=>x.id===id);j.checklist[idx].done=!j.checklist[idx].done;
+  if(j.checklist.some(c=>c.done)&&j.status==='scheduled')j.status='in_progress';persist();renderJob(id);}
+function setJob(id,s){state.jobs.find(j=>j.id===id).status=s;persist();
+  toast(s==='complete'?'Job complete ✓ — office notified to invoice':'Job started — go get it');renderJob(id);}
+
+/* ---------- sheets ---------- */
+function sheetTime(jobId){
+  const last=localStorage.getItem('tl-field-worker')||'';
+  openSheet(`<h3>⏱ Log time</h3>
+    ${jobId?'':`<label class="fld"><span>Job</span><select id="t_job">${state.jobs.map(j=>`<option value="${j.id}">${TL.esc(j.title)}</option>`).join('')}</select></label>`}
+    <label class="fld"><span>Crew member</span><input id="t_worker" placeholder="Name" value="${TL.esc(last)}"></label>
+    <div class="row2">
+      <label class="fld"><span>Hours</span><input id="t_hours" type="number" step="any" value="8"></label>
+      <label class="fld"><span>Rate ($/hr)</span><input id="t_rate" type="number" step="any" value="45"></label>
+    </div>
+    <div class="sfoot"><button class="btn" onclick="saveTime('${jobId||''}')">Save entry</button><button class="btn sec" onclick="closeSheet()">Cancel</button></div>`);
+}
+function saveTime(jobId){const w=document.getElementById('t_worker').value.trim();if(!w){toast('Who worked?');return;}
+  localStorage.setItem('tl-field-worker',w);
+  const jid=jobId||document.getElementById('t_job').value;
+  state.timesheets.push({id:TL.uid('t'),jobId:jid,worker:w,hours:+document.getElementById('t_hours').value||0,rate:+document.getElementById('t_rate').value||0,date:TL.today});
+  persist();closeSheet();toast('Time logged ✓');if(view==='job')renderJob(curJob);}
+function quickTime(){ if(!state||!state.jobs.length){toast('No jobs yet');return;} sheetTime(''); }
+
+function sheetExpense(jobId){
+  openSheet(`<h3>⌥ Log materials / expense</h3>
+    <label class="fld"><span>What</span><input id="e_desc" placeholder="e.g. Primer & sundries — Home Depot"></label>
+    <label class="fld"><span>Amount</span><input id="e_amt" type="number" step="any" placeholder="0.00"></label>
+    <div class="sfoot"><button class="btn" onclick="saveExpense('${jobId}')">Save expense</button><button class="btn sec" onclick="closeSheet()">Cancel</button></div>`);
+}
+function saveExpense(jobId){const d=document.getElementById('e_desc').value.trim();if(!d){toast('Describe it');return;}
+  state.expenses.push({id:TL.uid('e'),jobId,desc:d,amount:+document.getElementById('e_amt').value||0,date:TL.today});
+  persist();closeSheet();toast('Expense logged ✓');renderJob(curJob);}
+
+function sheetCO(jobId){
+  openSheet(`<h3>± Change order</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Extra scope the client asked for (or the job revealed). Send it for approval, or mark it approved if they OK'd it on site.</p>
+    <label class="fld"><span>What changed</span><input id="co_desc" placeholder="e.g. Patch water-damaged drywall — unit 9 bath"></label>
+    <label class="fld"><span>Amount</span><input id="co_amt" type="number" step="any" placeholder="0.00"></label>
+    <div class="sfoot"><button class="btn" onclick="saveCO('${jobId}','pending')">Send for approval</button><button class="btn sec" onclick="saveCO('${jobId}','approved')">✓ Client OK'd it on site</button><button class="btn ghost" onclick="closeSheet()">Cancel</button></div>`);
+}
+function saveCO(jobId,status){const d=document.getElementById('co_desc').value.trim();if(!d){toast('Describe the change');return;}
+  const amt=+document.getElementById('co_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
+  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d,amount:amt,status,date:TL.today});
+  persist();closeSheet();toast(status==='pending'?'Sent to client for approval':'Change order approved ✓');renderJob(curJob);}
+
+/* ---------- boot ---------- */
+(function boot(){
+  const list=getWorkspaces();
+  const activeKey=localStorage.getItem(WS_ACTIVE_KEY);
+  if(activeKey&&list.some(w=>w.key===activeKey)) openWorkspace(activeKey);
+  else if(list.length===1) openWorkspace(list[0].key);
+  else showPicker();
+})();
+if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

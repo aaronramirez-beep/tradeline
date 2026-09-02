@@ -378,7 +378,7 @@
     </div>
     <div class="brand"><span class="dot" id="bizDot">T</span><div style="min-width:0"><span id="bizName">Tradeline</span> <span class="pill p-purple" style="font-size:9px;padding:2px 7px;vertical-align:2px">PRO</span><small id="bizTrade">Field Service CRM</small></div></div>
     <nav class="nav" id="nav"></nav>
-    <div class="foot"><a href="index.html">← Tradeline home</a><br><span style="opacity:.85">Demo · data saves in this browser</span><br><a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
+    <div class="foot"><a href="index.html">← Tradeline home</a> · <a href="field.html">Field view ▸</a><br><span style="opacity:.85">Demo · data saves in this browser</span><br><a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
   </aside>
   <div class="main">
     <div class="top">
@@ -1288,6 +1288,8 @@ window.addEventListener('beforeunload', persist);
   const ws=list.find(w=>w.key===key);
   if(ws) openWorkspace(ws.key); else showLauncher();
 })();
+if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>

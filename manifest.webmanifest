@@ -1,0 +1,16 @@
+{
+  "name": "Tradeline Field",
+  "short_name": "Tradeline",
+  "description": "Field view for crews — today's jobs, checklists, time, materials and change orders.",
+  "start_url": "field.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0F1A",
+  "theme_color": "#0A0F1A",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

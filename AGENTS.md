@@ -4,10 +4,12 @@ Static demo CRM for field-service contractors. No build step, no backend, no dep
 
 ## Structure
 
-- `brand.css` — shared design tokens (`--tl-*` variables), fonts, icon system. **Edit here** to change the look across both pages.
+- `brand.css` — shared design tokens (`--tl-*` variables), fonts, icon system. **Edit here** to change the look across all pages.
 - `index.html` — landing page
-- `app.html` — full CRM demo (all JS/CSS inline except lib.js; all references prefixed `TL.*`)
-- `lib.js` — extracted pure functions, constants, state factories. Exposed on `window.TL`. Loaded by app.html before inline script.
+- `app.html` — full CRM demo, "Office view" (all JS/CSS inline except lib.js; all references prefixed `TL.*`)
+- `field.html` — mobile crew "Field view": jobs, checklists, time/materials/change-order logging. Shares the same localStorage workspaces as app.html. PWA entry point (start_url in the manifest).
+- `lib.js` — extracted pure functions, constants, state factories. Exposed on `window.TL`. Loaded by app.html and field.html before their inline scripts.
+- `manifest.webmanifest` + `sw.js` + `icons/` — PWA install & offline. sw.js is network-first with cache fallback; bump its `CACHE` version when files are added/renamed. Icons are generated PNGs of the TL mark (PIL script, not committed).
 
 All demo data is localStorage. No accounts, no server.
 

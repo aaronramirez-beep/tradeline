@@ -329,13 +329,15 @@
       <span class="rule" aria-hidden="true" style="height:21px"></span>
       <span><span class="word" style="font-size:14px">Tradeline</span></span>
     </a>
-    <div class="foot-mono">A working product demo · All data stays in your browser · <a href="app.html">Open the demo →</a></div>
+    <div class="foot-mono">A working product demo · All data stays in your browser · <a href="app.html">Open the demo →</a> · <a href="field.html">Field app (mobile) →</a></div>
   </div>
 </footer>
 
 <script>
   const io = new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
   document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
