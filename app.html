@@ -407,6 +407,7 @@
 <div id="launcher"></div>
 
 <script src="lib.js"></script>
+<script src="cloud.js"></script>
 <script>
 /* ============================ CORE HELPERS ============================ */
 /* UID counter lives in lib.js (global `UID`). Persist/restore on lines 1174/1183. */
@@ -1260,7 +1261,8 @@ function wsDataKey(k){ return 'arkhub-ws-'+k; }
 
 function persist(){
   if (SKIP_SAVE || !activeWs || !state) return;
-  try { localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state})); } catch(e) {}
+  try { localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state, savedAt:new Date().toISOString()})); } catch(e) {}
+  TLC.push(activeWs, {UID, state, savedAt:new Date().toISOString()});
 }
 
 function openWorkspace(key){
@@ -1271,6 +1273,7 @@ function openWorkspace(key){
   try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
   if (loaded && loaded.state){ state = Object.assign(TL.baseState(), loaded.state); UID = loaded.UID || UID; }
   else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
+  if (TLC.user()) cloudAdopt(ws, loaded);
   document.getElementById('bizDot').textContent = (ws.name.trim()[0]||'A').toUpperCase();
   document.getElementById('bizName').textContent = ws.name;
   document.getElementById('bizTrade').textContent = ws.trade || 'Field Service';
@@ -1290,6 +1293,16 @@ function showLauncher(){
         <div style="display:flex;align-items:center;gap:11px"><span class="bdot">${TL.esc((w.name.trim()[0]||'A').toUpperCase())}</span><div><h3>${TL.esc(w.name)}</h3><span class="tiny">${w.trade||''} · ${w.seed==='sample'?'sample data':'started blank'}</span></div></div>
         <div class="actions"><button class="btn sm" onclick="openWorkspace('${w.key}')">Open →</button><button class="btn danger sm" onclick="deleteWorkspace('${w.key}')">Delete</button></div>
       </div>`).join('')}</div>`:''}
+    <div class="launchform" style="margin-bottom:14px">
+      ${TLC.user()?`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="pill p-green">☁ Synced</span><span class="tiny">${TL.esc(TLC.user().email)} — your businesses follow you across devices.</span><a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer;font-size:12.5px" onclick="cloudSignOut()">Sign out</a></div>`
+      :`<h3>☁ Sync across devices <span class="tiny" style="font-weight:400">(optional)</span></h3>
+      <div class="row2">
+        <label class="fld"><span>Email</span><input id="cl_email" type="email" placeholder="you@company.com"></label>
+        <label class="fld"><span>Password</span><input id="cl_pw" type="password" placeholder="6+ characters"></label>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" onclick="cloudSignIn('in')">Sign in</button><button class="btn sec sm" onclick="cloudSignIn('up')">Create account</button></div>
+      <div class="tiny" style="margin-top:8px">Without an account everything still works — data just stays in this browser.</div>`}
+    </div>
     <div class="launchform">
       <h3>＋ ${list.length?'Add another business':'Create your first business'}</h3>
       <div class="row2">
@@ -1321,8 +1334,46 @@ function deleteWorkspace(key){
   saveWorkspaces(getWorkspaces().filter(w=>w.key!==key));
   try{ localStorage.removeItem(wsDataKey(key)); }catch(e){}
   if(activeWs && activeWs.key===key){ activeWs=null; try{ localStorage.removeItem(WS_ACTIVE_KEY); }catch(e){} }
+  if(TLC.user()) TLC.remove(key).catch(()=>{});
   showLauncher();
 }
+
+/* ---- cloud sync glue ---- */
+async function cloudAdopt(ws, localLoaded){
+  try{
+    const cloud = await TLC.pull(ws.key);
+    const localAt = localLoaded && localLoaded.savedAt ? localLoaded.savedAt : '';
+    if (cloud && cloud.data && cloud.data.state && (!localAt || cloud.updated_at > localAt)){
+      if (activeWs && activeWs.key===ws.key){
+        state = Object.assign(TL.baseState(), cloud.data.state); UID = cloud.data.UID || UID;
+        try{ localStorage.setItem(wsDataKey(ws.key), JSON.stringify({...cloud.data, savedAt:cloud.updated_at})); }catch(e){}
+        go(current||'dashboard'); toast('☁ Loaded latest from cloud');
+      }
+    } else if (!cloud) TLC.push(ws, {UID, state});
+  }catch(e){}
+}
+async function cloudSyncLists(){
+  try{
+    const merged = await TLC.mergeLists(getWorkspaces());
+    saveWorkspaces(merged.list);
+    for(const w of merged.localOnly){
+      let d=null; try{ d=JSON.parse(localStorage.getItem(wsDataKey(w.key))); }catch(e){}
+      if(d) { TLC.push(w,d); await TLC.flush(); }
+    }
+  }catch(e){}
+}
+async function cloudSignIn(mode){
+  const email=document.getElementById('cl_email').value.trim(), pw=document.getElementById('cl_pw').value;
+  if(!email||!pw){ toast('Email and password, please'); return; }
+  try{
+    if(mode==='up'){
+      const r=await TLC.signUp(email,pw);
+      if(r.needsConfirm){ toast('✉ Check your email to confirm, then sign in'); return; }
+    } else await TLC.signIn(email,pw);
+    toast('☁ Signed in — syncing'); await cloudSyncLists(); showLauncher();
+  }catch(e){ toast(e.message||'Sign-in failed'); }
+}
+async function cloudSignOut(){ await TLC.signOut(); toast('Signed out — data stays on this device'); showLauncher(); }
 function resetDemo(){
   if(!activeWs) return;
   if(!confirm('Reset "'+activeWs.name+'" back to its starting data?')) return;
@@ -1339,6 +1390,7 @@ window.addEventListener('beforeunload', persist);
   let key=null; try{ key=localStorage.getItem(WS_ACTIVE_KEY); }catch(e){}
   const ws=list.find(w=>w.key===key);
   if(ws) openWorkspace(ws.key); else showLauncher();
+  if(TLC.user()) cloudSyncLists().then(()=>{ if(!activeWs) showLauncher(); });
 })();
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))
   navigator.serviceWorker.register('sw.js').catch(()=>{});

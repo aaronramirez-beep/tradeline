@@ -10,6 +10,7 @@ Static demo CRM for field-service contractors. No build step, no backend, no dep
 - `field.html` — mobile crew "Field view": jobs, checklists, time/materials/change-order logging. Shares the same localStorage workspaces as app.html. PWA entry point (start_url in the manifest).
 - `lib.js` — extracted pure functions, constants, state factories. Exposed on `window.TL`. Loaded by app.html and field.html before their inline scripts.
 - `manifest.webmanifest` + `sw.js` + `icons/` — PWA install & offline. sw.js is network-first with cache fallback; bump its `CACHE` version when files are added/renamed. Icons are generated PNGs of the TL mark (PIL script, not committed).
+- `cloud.js` — optional accounts + cross-device sync against Supabase (hand-rolled fetch client, no library). Publishable key is committed on purpose (public by design); data protection is row-level security in `supabase/schema.sql`, which must be run once in the project's SQL editor. Local storage stays the source of truth offline; cloud wins only when its copy is newer.
 
 All demo data is localStorage. No accounts, no server.
 

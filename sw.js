@@ -1,9 +1,9 @@
 /* Tradeline service worker — network-first with cache fallback.
    Always serves fresh files when online; keeps the last good copy for offline.
    Bump CACHE when the shell changes shape (new/renamed files). */
-const CACHE = 'tradeline-v1';
+const CACHE = 'tradeline-v2';
 const SHELL = [
-  './', 'index.html', 'app.html', 'field.html', 'brand.css', 'lib.js',
+  './', 'index.html', 'app.html', 'field.html', 'brand.css', 'lib.js', 'cloud.js',
   'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
 ];

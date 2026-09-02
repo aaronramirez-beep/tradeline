@@ -96,6 +96,15 @@ test.describe('Tradeline Field (mobile)', () => {
     await expect(page.locator('#pgrid .ph')).toHaveCount(1);
   });
 
+  test('picker offers optional cloud sign-in without blocking local use', async ({ page }) => {
+    await page.goto('http://localhost:3456/field.html');
+    await expect(page.locator('text=Sync with the office')).toBeVisible();
+    await expect(page.locator('#cl_email')).toBeVisible();
+    // Local path still works with no account
+    await page.click('button:has-text("Try with a sample company")');
+    await expect(page.locator('.jcard').first()).toBeVisible();
+  });
+
   test('PWA wiring: manifest and service worker are served', async ({ page, request }) => {
     const mf = await request.get('http://localhost:3456/manifest.webmanifest');
     expect(mf.ok()).toBeTruthy();

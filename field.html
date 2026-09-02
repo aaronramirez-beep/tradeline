@@ -169,6 +169,7 @@
 <div id="toast"></div>
 
 <script src="lib.js"></script>
+<script src="cloud.js"></script>
 <script>
 /* ---------- shared persistence (same keys as app.html) ---------- */
 const WS_LIST_KEY='arkhub-workspaces', WS_ACTIVE_KEY='arkhub-active';
@@ -176,7 +177,9 @@ let activeWs=null, view='jobs', curJob=null;
 function getWorkspaces(){ try{ return JSON.parse(localStorage.getItem(WS_LIST_KEY))||[] }catch(e){ return [] } }
 function saveWorkspaces(w){ try{ localStorage.setItem(WS_LIST_KEY, JSON.stringify(w)); }catch(e){} }
 function wsDataKey(k){ return 'arkhub-ws-'+k; }
-function persist(){ if(!activeWs||!state) return; try{ localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state})); }catch(e){} }
+function persist(){ if(!activeWs||!state) return;
+  try{ localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state, savedAt:new Date().toISOString()})); }catch(e){}
+  TLC.push(activeWs, {UID, state, savedAt:new Date().toISOString()}); }
 
 function openWorkspace(key){
   const ws=getWorkspaces().find(w=>w.key===key); if(!ws) return;
@@ -184,6 +187,7 @@ function openWorkspace(key){
   let loaded=null; try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
   if(loaded&&loaded.state){ state=Object.assign(TL.baseState(),loaded.state); UID=loaded.UID||UID; }
   else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
+  if(TLC.user()) cloudAdopt(ws,loaded);
   document.getElementById('wsName').innerHTML=`${TL.esc(ws.name)}<span class="sub">Field view · ${TL.esc(ws.trade||'Field Service')}</span>`;
   document.getElementById('topbar').style.display='flex';
   document.getElementById('nav').style.display='flex';
@@ -203,9 +207,54 @@ function showPicker(){
     <p>The crew side of Tradeline — today's jobs, checklists, time, materials and change orders. Data lives in this browser; the Office view is the full back office.</p>
     ${list.map(w=>`<button class="bizbtn" onclick="openWorkspace('${w.key}')"><span class="bd">${TL.esc((w.name.trim()[0]||'A').toUpperCase())}</span><span style="flex:1"><b>${TL.esc(w.name)}</b><i>${TL.esc(w.trade||'')} · ${w.seed==='sample'?'sample data':'started blank'}</i></span><span style="color:var(--faint)">→</span></button>`).join('')}
     <button class="btn ${list.length?'ghost':''}" onclick="createSample()" style="margin-top:6px">＋ Try with a sample company</button>
+    <div style="text-align:left;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;margin-top:14px">
+      ${TLC.user()?`<div style="font-size:13px"><span class="pill p-green">☁ Synced</span> <span style="color:var(--muted)">${TL.esc(TLC.user().email)}</span> · <a style="text-decoration:underline;cursor:pointer;color:var(--muted)" onclick="cloudSignOut()">Sign out</a></div>`
+      :`<div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">☁ Sync with the office <span style="font-weight:400;color:var(--faint)">(optional)</span></div>
+      <label class="fld"><span>Email</span><input id="cl_email" type="email" placeholder="you@company.com"></label>
+      <label class="fld"><span>Password</span><input id="cl_pw" type="password" placeholder="6+ characters"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="btn" style="min-height:44px" onclick="cloudSignIn('in')">Sign in</button><button class="btn sec" style="min-height:44px" onclick="cloudSignIn('up')">Create account</button></div>`}
+    </div>
     <p style="margin-top:18px"><a href="index.html" style="text-decoration:underline;color:var(--muted)">← Tradeline home</a></p>
   </div>`;
 }
+
+/* ---- cloud sync glue ---- */
+async function cloudAdopt(ws,localLoaded){
+  try{
+    const cloud=await TLC.pull(ws.key);
+    const localAt=localLoaded&&localLoaded.savedAt?localLoaded.savedAt:'';
+    if(cloud&&cloud.data&&cloud.data.state&&(!localAt||cloud.updated_at>localAt)){
+      if(activeWs&&activeWs.key===ws.key){
+        state=Object.assign(TL.baseState(),cloud.data.state); UID=cloud.data.UID||UID;
+        try{ localStorage.setItem(wsDataKey(ws.key), JSON.stringify({...cloud.data, savedAt:cloud.updated_at})); }catch(e){}
+        if(view==='job')renderJob(curJob);else renderJobs();
+        toast('☁ Loaded latest from cloud');
+      }
+    } else if(!cloud) TLC.push(ws,{UID,state});
+  }catch(e){}
+}
+async function cloudSyncLists(){
+  try{
+    const merged=await TLC.mergeLists(getWorkspaces());
+    saveWorkspaces(merged.list);
+    for(const w of merged.localOnly){
+      let d=null; try{ d=JSON.parse(localStorage.getItem(wsDataKey(w.key))); }catch(e){}
+      if(d){ TLC.push(w,d); await TLC.flush(); }
+    }
+  }catch(e){}
+}
+async function cloudSignIn(mode){
+  const email=document.getElementById('cl_email').value.trim(), pw=document.getElementById('cl_pw').value;
+  if(!email||!pw){ toast('Email and password, please'); return; }
+  try{
+    if(mode==='up'){
+      const r=await TLC.signUp(email,pw);
+      if(r.needsConfirm){ toast('✉ Check your email to confirm, then sign in'); return; }
+    } else await TLC.signIn(email,pw);
+    toast('☁ Signed in — syncing'); await cloudSyncLists(); showPicker();
+  }catch(e){ toast(e.message||'Sign-in failed'); }
+}
+async function cloudSignOut(){ await TLC.signOut(); toast('Signed out — data stays on this device'); showPicker(); }
 
 /* ---------- shell ---------- */
 const el=()=>document.getElementById('main');
@@ -374,6 +423,7 @@ function saveCO(jobId,status){const d=document.getElementById('co_desc').value.t
   if(activeKey&&list.some(w=>w.key===activeKey)) openWorkspace(activeKey);
   else if(list.length===1) openWorkspace(list[0].key);
   else showPicker();
+  if(TLC.user()) cloudSyncLists().then(()=>{ if(!activeWs) showPicker(); });
 })();
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))
   navigator.serviceWorker.register('sw.js').catch(()=>{});
