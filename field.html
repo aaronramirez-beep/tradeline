@@ -172,19 +172,42 @@
 <script src="cloud.js"></script>
 <script>
 /* ---------- shared persistence (same keys as app.html) ---------- */
-const WS_LIST_KEY='arkhub-workspaces', WS_ACTIVE_KEY='arkhub-active';
+const WS_LIST_KEY='arkhub-workspaces', WS_ACTIVE_KEY='arkhub-active', WS_PASS_KEY='arkhub-pass';
+const ENCRYPT_MARKER='enc:v1:';
 let activeWs=null, view='jobs', curJob=null;
 function getWorkspaces(){ try{ return JSON.parse(localStorage.getItem(WS_LIST_KEY))||[] }catch(e){ return [] } }
 function saveWorkspaces(w){ try{ localStorage.setItem(WS_LIST_KEY, JSON.stringify(w)); }catch(e){} }
 function wsDataKey(k){ return 'arkhub-ws-'+k; }
+function wsPassphrase(){ try{ return sessionStorage.getItem(WS_PASS_KEY)||''; }catch(e){ return ''; } }
+function setWsPassphrase(p){ try{ sessionStorage.setItem(WS_PASS_KEY,p); }catch(e){} }
 function persist(){ if(!activeWs||!state) return;
-  try{ localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state, savedAt:new Date().toISOString()})); }catch(e){}
+  const blob=JSON.stringify({UID, state, savedAt:new Date().toISOString()});
+  const pass=wsPassphrase();
+  if(pass) TL.encryptWorkspace(pass,blob).then(enc=>{ try{ localStorage.setItem(wsDataKey(activeWs.key), ENCRYPT_MARKER+enc); }catch(e){} }).catch(()=>{});
+  else try{
+    // never write plaintext over an encrypted blob (see app.html persist)
+    const cur=localStorage.getItem(wsDataKey(activeWs.key));
+    if(!(cur&&cur.startsWith(ENCRYPT_MARKER))) localStorage.setItem(wsDataKey(activeWs.key), blob);
+  }catch(e){}
   TLC.push(activeWs, {UID, state, savedAt:new Date().toISOString()}); }
 
-function openWorkspace(key){
+async function openWorkspace(key){
   const ws=getWorkspaces().find(w=>w.key===key); if(!ws) return;
-  activeWs=ws; try{ localStorage.setItem(WS_ACTIVE_KEY,key); }catch(e){}
-  let loaded=null; try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
+  let raw=null; try{ raw=localStorage.getItem(wsDataKey(key)); }catch(e){}
+  if(raw&&raw.startsWith(ENCRYPT_MARKER)){
+    if(wsPassphrase()){
+      try{
+        const loaded=JSON.parse(await TL.decryptWorkspace(wsPassphrase(), raw.slice(ENCRYPT_MARKER.length)));
+        activateWs(ws,loaded); return;
+      }catch(e){}
+    }
+    unlockScreen(ws); return; // never fall through to reseed — that would overwrite the encrypted data
+  }
+  let loaded=null; try{ if(raw) loaded=JSON.parse(raw); }catch(e){}
+  activateWs(ws,loaded);
+}
+function activateWs(ws,loaded){
+  activeWs=ws; try{ localStorage.setItem(WS_ACTIVE_KEY,ws.key); }catch(e){}
   if(loaded&&loaded.state){ state=Object.assign(TL.baseState(),loaded.state); UID=loaded.UID||UID; }
   else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
   if(TLC.user()) cloudAdopt(ws,loaded);
@@ -192,6 +215,29 @@ function openWorkspace(key){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('nav').style.display='flex';
   persist(); go('jobs');
+}
+function unlockScreen(ws){
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('nav').style.display='none';
+  el().innerHTML=`<div class="launch">
+    <div class="lmark"><svg viewBox="0 0 84 84" aria-hidden="true"><path d="M16 28a8 8 0 0 1 8-8h36a8 8 0 0 1 0 16H24a8 8 0 0 1-8-8ZM34 36v18a8 8 0 0 0 16 0V36"/></svg></div>
+    <h2>🔒 ${TL.esc(ws.name)}</h2>
+    <p>This business is encrypted at rest. Enter its passphrase to open it.</p>
+    <label class="fld" style="text-align:left"><span>Passphrase</span><input id="uk_pw" type="password" autocomplete="off"></label>
+    <button class="btn" onclick="doUnlock('${ws.key}')">Unlock</button>
+    <button class="btn ghost" onclick="showPicker()" style="margin-top:8px">← Back to businesses</button>
+  </div>`;
+}
+async function doUnlock(key){
+  const pw=document.getElementById('uk_pw').value;
+  try{
+    const raw=localStorage.getItem(wsDataKey(key));
+    if(!raw||!raw.startsWith(ENCRYPT_MARKER)) throw new Error('not encrypted');
+    const loaded=JSON.parse(await TL.decryptWorkspace(pw, raw.slice(ENCRYPT_MARKER.length)));
+    setWsPassphrase(pw);
+    const ws=getWorkspaces().find(w=>w.key===key);
+    if(ws){ activateWs(ws,loaded); toast('Unlocked 🔓'); }
+  }catch(e){ toast('Wrong passphrase'); }
 }
 function createSample(){
   const ws={ key:'w'+Date.now().toString(36)+Math.floor(Math.random()*1e4), name:'Sample Finishing Co.', trade:'Painting & finishing', seed:'sample', created:TL.today };
@@ -226,7 +272,7 @@ async function cloudAdopt(ws,localLoaded){
     if(cloud&&cloud.data&&cloud.data.state&&(!localAt||cloud.updated_at>localAt)){
       if(activeWs&&activeWs.key===ws.key){
         state=Object.assign(TL.baseState(),cloud.data.state); UID=cloud.data.UID||UID;
-        try{ localStorage.setItem(wsDataKey(ws.key), JSON.stringify({...cloud.data, savedAt:cloud.updated_at})); }catch(e){}
+        persist(); // passphrase-aware save — never writes plaintext over an encrypted blob
         if(view==='job')renderJob(curJob);else renderJobs();
         toast('☁ Loaded latest from cloud');
       }
@@ -335,17 +381,22 @@ function renderJob(id){
 async function addPhotos(jobId,files){
   if(!files||!files.length)return;
   const by=localStorage.getItem('tl-field-worker')||'Crew';
-  let n=0;
+  let n=0, skipped=0;
   for(const f of files){
+    const chk=TL.validatePhoto(f);
+    if(!chk.ok){ skipped++; continue; }
     try{
       const data=await TL.shrinkImage(f);
       const p={id:TL.uid('ph'),jobId,name:f.name||'photo',by,date:TL.today};
       await TL.photoDB.put(p.id,data);
       state.photos.push(p);n++;
-    }catch(e){}
+    }catch(e){ skipped++; }
   }
   persist();
-  toast(n?n+' photo'+(n>1?'s':'')+' added ✓':'Could not read that photo');
+  if(n&&skipped) toast(n+' photo'+(n>1?'s':'')+' added ✓ · '+skipped+' skipped');
+  else if(n) toast(n+' photo'+(n>1?'s':'')+' added ✓');
+  else if(skipped) toast('Skipped '+skipped+' (must be JPEG/PNG/WebP under 10 MB)');
+  else toast('Could not read that photo');
   renderJob(jobId);
 }
 function fillPhotoGrid(jobId){
@@ -388,9 +439,12 @@ function sheetTime(jobId){
     <div class="sfoot"><button class="btn" onclick="saveTime('${jobId||''}')">Save entry</button><button class="btn sec" onclick="closeSheet()">Cancel</button></div>`);
 }
 function saveTime(jobId){const w=document.getElementById('t_worker').value.trim();if(!w){toast('Who worked?');return;}
+  const hours=+document.getElementById('t_hours').value||0, rate=+document.getElementById('t_rate').value||0;
+  if(hours<=0||hours>24){toast('Enter hours between 0 and 24');return;}
+  if(rate<0||rate>1000){toast('Enter a valid hourly rate');return;}
   localStorage.setItem('tl-field-worker',w);
   const jid=jobId||document.getElementById('t_job').value;
-  state.timesheets.push({id:TL.uid('t'),jobId:jid,worker:w,hours:+document.getElementById('t_hours').value||0,rate:+document.getElementById('t_rate').value||0,date:TL.today});
+  state.timesheets.push({id:TL.uid('t'),jobId:jid,worker:w.slice(0,60),hours,rate,date:TL.today});
   persist();closeSheet();toast('Time logged ✓');if(view==='job')renderJob(curJob);}
 function quickTime(){ if(!state||!state.jobs.length){toast('No jobs yet');return;} sheetTime(''); }
 
@@ -401,7 +455,8 @@ function sheetExpense(jobId){
     <div class="sfoot"><button class="btn" onclick="saveExpense('${jobId}')">Save expense</button><button class="btn sec" onclick="closeSheet()">Cancel</button></div>`);
 }
 function saveExpense(jobId){const d=document.getElementById('e_desc').value.trim();if(!d){toast('Describe it');return;}
-  state.expenses.push({id:TL.uid('e'),jobId,desc:d,amount:+document.getElementById('e_amt').value||0,date:TL.today});
+  const amt=+document.getElementById('e_amt').value||0;if(amt<=0||amt>1000000){toast('Enter a valid amount');return;}
+  state.expenses.push({id:TL.uid('e'),jobId,desc:d.slice(0,160),amount:amt,date:TL.today});
   persist();closeSheet();toast('Expense logged ✓');renderJob(curJob);}
 
 function sheetCO(jobId){
@@ -412,8 +467,8 @@ function sheetCO(jobId){
     <div class="sfoot"><button class="btn" onclick="saveCO('${jobId}','pending')">Send for approval</button><button class="btn sec" onclick="saveCO('${jobId}','approved')">✓ Client OK'd it on site</button><button class="btn ghost" onclick="closeSheet()">Cancel</button></div>`);
 }
 function saveCO(jobId,status){const d=document.getElementById('co_desc').value.trim();if(!d){toast('Describe the change');return;}
-  const amt=+document.getElementById('co_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
-  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d,amount:amt,status,date:TL.today});
+  const amt=+document.getElementById('co_amt').value||0;if(amt<=0||amt>1000000){toast('Enter a valid amount');return;}
+  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d.slice(0,160),amount:amt,status,date:TL.today});
   persist();closeSheet();toast(status==='pending'?'Sent to client for approval':'Change order approved ✓');renderJob(curJob);}
 
 /* ---------- boot ---------- */

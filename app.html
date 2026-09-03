@@ -387,7 +387,7 @@
     </div>
     <div class="brand"><span class="dot" id="bizDot">T</span><div style="min-width:0"><span id="bizName">Tradeline</span> <span class="pill p-purple" style="font-size:9px;padding:2px 7px;vertical-align:2px">PRO</span><small id="bizTrade">Field Service CRM</small></div></div>
     <nav class="nav" id="nav"></nav>
-    <div class="foot"><a href="index.html">← Tradeline home</a> · <a href="field.html">Field view ▸</a><br><span style="opacity:.85">Demo · data saves in this browser</span><br><a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
+    <div class="foot"><a href="index.html">← Tradeline home</a> · <a href="field.html">Field view ▸</a><br><span style="opacity:.85">Demo · data saves in this browser</span><br><a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="showLauncher()">⇄ Switch business</a> · <a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="lockWorkspace()">🔒 Lock</a> · <a style="color:var(--tl-muted);text-decoration:underline;cursor:pointer" onclick="resetDemo()">Reset this business</a></div>
   </aside>
   <div class="main">
     <div class="top">
@@ -604,7 +604,11 @@ function newRequest(){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveRequest()">Save request</button></div>`);
 }
 function saveRequest(){const n=document.getElementById('r_name').value.trim();if(!n){toast('Add a name');return;}
-  state.requests.unshift({id:TL.uid('r'),name:n,phone:document.getElementById('r_phone').value||'—',service:document.getElementById('r_service').value||'General inquiry',pref:document.getElementById('r_pref').value,source:'Manual entry',status:'new'});
+  const nameChk=TL.validateField(n,{required:true,maxLength:120});
+  if(!nameChk.ok){toast(nameChk.msg);return;}
+  const phone=document.getElementById('r_phone').value.trim();
+  if(phone && phone!=='—' && !TL.validateField(phone,{pattern:TL.PHONE_RE,patternMsg:'Enter a valid phone number'}).ok){toast('Enter a valid phone number');return;}
+  state.requests.unshift({id:TL.uid('r'),name:n,phone:phone||'—',service:document.getElementById('r_service').value||'General inquiry',pref:document.getElementById('r_pref').value,source:'Manual entry',status:'new'});
   closeModal();toast('Request added');go('requests');}
 function convertRequest(id){
   const r=state.requests.find(x=>x.id===id);
@@ -776,17 +780,22 @@ function jobDetail(id){const j=state.jobs.find(x=>x.id===id);const c=TL.client(j
 /* ---- JOB PHOTOS (metadata in state, image data in IndexedDB) ---- */
 async function addPhotos(jobId,files,by){
   if(!files||!files.length)return;
-  let n=0;
+  let n=0, skipped=0;
   for(const f of files){
+    const chk=TL.validatePhoto(f);
+    if(!chk.ok){ skipped++; continue; }
     try{
       const data=await TL.shrinkImage(f);
       const p={id:TL.uid('ph'),jobId,name:f.name||'photo',by:by||'Office',date:TL.today};
       await TL.photoDB.put(p.id,data);
       state.photos.push(p);n++;
-    }catch(e){}
+    }catch(e){ skipped++; }
   }
   persist();
-  if(n)toast(n+' photo'+(n>1?'s':'')+' added ✓');else toast('Could not read those files');
+  if(n&&skipped) toast(n+' photo'+(n>1?'s':'')+' added ✓ · '+skipped+' skipped');
+  else if(n) toast(n+' photo'+(n>1?'s':'')+' added ✓');
+  else if(skipped) toast('Skipped '+skipped+' (must be JPEG/PNG/WebP under 10 MB)');
+  else toast('Could not read those files');
   jobDetail(jobId);
 }
 function fillPhotoGrid(jobId,elId){
@@ -822,8 +831,8 @@ function newCO(jobId){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" onclick="saveCO('${jobId}','approved')">Save approved (verbal OK)</button><button class="btn" onclick="saveCO('${jobId}','pending')">Send for approval</button></div>`);
 }
 function saveCO(jobId,status){const d=document.getElementById('co_desc').value.trim();if(!d){toast('Describe the change');return;}
-  const amt=+document.getElementById('co_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
-  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d,amount:amt,status,date:document.getElementById('co_date').value||TL.today});
+  const amt=+document.getElementById('co_amt').value||0;if(amt<=0||amt>1000000){toast('Enter a valid amount');return;}
+  state.changeOrders.push({id:TL.uid('co'),jobId,desc:d.slice(0,160),amount:amt,status,date:document.getElementById('co_date').value||TL.today});
   closeModal();toast(status==='pending'?'Change order sent to client for approval':'Change order approved ✓');jobDetail(jobId);}
 function setCO(coId,status){const co=state.changeOrders.find(x=>x.id===coId);co.status=status;
   toast(status==='approved'?'Change order approved ✓ — it will land on the invoice':'Change order declined');jobDetail(co.jobId);}
@@ -866,7 +875,10 @@ function newTime(preJob){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTime()">Save entry</button></div>`);
 }
 function saveTime(){const w=document.getElementById('t_worker').value.trim();if(!w){toast('Who worked?');return;}
-  state.timesheets.push({id:TL.uid('t'),jobId:document.getElementById('t_job').value,worker:w,hours:+document.getElementById('t_hours').value||0,rate:+document.getElementById('t_rate').value||0,date:document.getElementById('t_date').value||TL.today});
+  const hours=+document.getElementById('t_hours').value||0, rate=+document.getElementById('t_rate').value||0;
+  if(hours<=0||hours>24){toast('Enter hours between 0 and 24');return;}
+  if(rate<0||rate>1000){toast('Enter a valid hourly rate');return;}
+  state.timesheets.push({id:TL.uid('t'),jobId:document.getElementById('t_job').value,worker:w.slice(0,60),hours,rate,date:document.getElementById('t_date').value||TL.today});
   closeModal();toast('Time logged');go('timesheets');}
 
 /* ---- EXPENSES ---- */
@@ -891,7 +903,9 @@ function newExpense(preJob){
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveExpense()">Save expense</button></div>`);
 }
 function saveExpense(){const d=document.getElementById('e_desc').value.trim();if(!d){toast('Describe it');return;}
-  state.expenses.push({id:TL.uid('e'),jobId:document.getElementById('e_job').value,desc:d,amount:+document.getElementById('e_amt').value||0,date:document.getElementById('e_date').value||TL.today});
+  const amt=+document.getElementById('e_amt').value||0;
+  if(amt<=0||amt>1000000){toast('Enter a valid amount');return;}
+  state.expenses.push({id:TL.uid('e'),jobId:document.getElementById('e_job').value,desc:d.slice(0,160),amount:amt,date:document.getElementById('e_date').value||TL.today});
   closeModal();toast('Expense added');go('expenses');}
 
 /* ---- INVOICES ---- */
@@ -1129,8 +1143,12 @@ function newClient(){
   </div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveClient()">Save client</button></div>`);
 }
-function saveClient(){const n=document.getElementById('f_name').value.trim();if(!n){toast('Give the client a name');return;}
-  state.clients.push({id:TL.uid('c'),name:n,contact:document.getElementById('f_contact').value||'—',type:document.getElementById('f_type').value,phone:document.getElementById('f_phone').value||'—',email:document.getElementById('f_email').value||'—',address:document.getElementById('f_address').value||'—'});
+function saveClient(){const n=document.getElementById('f_name').value.trim();const nChk=TL.validateField(n,{required:true,maxLength:120});if(!nChk.ok){toast(nChk.msg);return;}
+  const email=document.getElementById('f_email').value.trim();
+  if(email && !TL.validateField(email,{pattern:TL.EMAIL_RE,patternMsg:'Enter a valid email'}).ok){toast('Enter a valid email');return;}
+  const phone=document.getElementById('f_phone').value.trim();
+  if(phone && !TL.validateField(phone,{pattern:TL.PHONE_RE,patternMsg:'Enter a valid phone number'}).ok){toast('Enter a valid phone number');return;}
+  state.clients.push({id:TL.uid('c'),name:n,contact:(document.getElementById('f_contact').value||'—').trim().slice(0,120),type:document.getElementById('f_type').value,phone:phone||'—',email:email||'—',address:(document.getElementById('f_address').value||'—').trim().slice(0,200)});
   closeModal();toast('Client added');go('clients');}
 
 let draftItems=[];
@@ -1237,6 +1255,8 @@ function recordPayment(invId){const inv=state.invoices.find(i=>i.id===invId);con
 }
 function savePayment(invId){const amt=+document.getElementById('pay_amt').value||0;if(amt<=0){toast('Enter an amount');return;}
   const inv=state.invoices.find(i=>i.id===invId);
+  const bal=TL.invBalance(inv);
+  if(amt>bal){toast('Payment can\'t exceed the balance of '+TL.money(bal));return;}
   state.payments.push({id:TL.uid('p'),invoiceId:invId,amount:amt,method:document.getElementById('pay_method').value,date:document.getElementById('pay_date').value||TL.today});
   if(TL.invBalance(inv)<=0)inv.status='paid';
   closeModal();toast('Payment recorded 🎉'+(state.integrations.qbo?' · synced to QBO':''));invoiceDetail(invId);}
@@ -1251,6 +1271,7 @@ NAVDEF[1][1].splice(1,0,['clients',ICO.clients,'Clients']);
 /* ============================ WORKSPACES & PERSISTENCE ============================ */
 const WS_LIST_KEY = 'arkhub-workspaces';
 const WS_ACTIVE_KEY = 'arkhub-active';
+const WS_PASS_KEY = 'arkhub-pass';
 let activeWs = null;
 let SKIP_SAVE = false;
 const TRADES = ['Painting & finishing','Drywall','Landscaping','Cleaning','HVAC','Plumbing','Electrical','General contracting','Handyman','Other'];
@@ -1259,18 +1280,54 @@ function getWorkspaces(){ try{ return JSON.parse(localStorage.getItem(WS_LIST_KE
 function saveWorkspaces(w){ try{ localStorage.setItem(WS_LIST_KEY, JSON.stringify(w)); }catch(e){} }
 function wsDataKey(k){ return 'arkhub-ws-'+k; }
 
+function wsPassphrase(){ try{ return sessionStorage.getItem(WS_PASS_KEY) || ''; }catch(e){ return ''; } }
+function setWsPassphrase(p){ try{ sessionStorage.setItem(WS_PASS_KEY, p); }catch(e){} }
+function clearWsPassphrase(){ try{ sessionStorage.removeItem(WS_PASS_KEY); }catch(e){} }
+
+const ENCRYPT_MARKER = 'enc:v1:';
 function persist(){
   if (SKIP_SAVE || !activeWs || !state) return;
-  try { localStorage.setItem(wsDataKey(activeWs.key), JSON.stringify({UID, state, savedAt:new Date().toISOString()})); } catch(e) {}
+  const blob = JSON.stringify({UID, state, savedAt:new Date().toISOString()});
+  const pass = wsPassphrase();
+  if (pass) {
+    TL.encryptWorkspace(pass, blob).then(enc => {
+      try { localStorage.setItem(wsDataKey(activeWs.key), ENCRYPT_MARKER + enc); } catch(e) {}
+    }).catch(() => {});
+  } else {
+    // Never write plaintext over an encrypted blob (e.g. auto-persist hooks
+    // firing when the passphrase isn't in this session) — that would both
+    // leak the data and destroy the encrypted copy.
+    try {
+      const cur = localStorage.getItem(wsDataKey(activeWs.key));
+      if (!(cur && cur.startsWith(ENCRYPT_MARKER))) localStorage.setItem(wsDataKey(activeWs.key), blob);
+    } catch(e) {}
+  }
   TLC.push(activeWs, {UID, state, savedAt:new Date().toISOString()});
 }
 
-function openWorkspace(key){
+async function openWorkspace(key){
   const ws = getWorkspaces().find(w=>w.key===key); if(!ws) return;
+  let loaded=null, raw=null;
+  try{ raw=localStorage.getItem(wsDataKey(key)); }catch(e){}
+  const isEnc = raw && raw.startsWith(ENCRYPT_MARKER);
+  if (isEnc){
+    if (wsPassphrase()){
+      try{ loaded = JSON.parse(await TL.decryptWorkspace(wsPassphrase(), raw.slice(ENCRYPT_MARKER.length))); }
+      catch(e){ toast('Wrong passphrase — could not unlock'); /* fall through to unlock prompt */ }
+      if (loaded) { activate(ws, loaded, key); return; }
+    }
+    activeWs = ws; SKIP_SAVE = true; state = TL.baseState();
+    try{ localStorage.setItem(WS_ACTIVE_KEY, key); }catch(e){}
+    hideLauncher(); go('dashboard');
+    unlockPrompt(key);
+    return;
+  }
+  try{ if(raw) loaded=JSON.parse(raw); }catch(e){}
+  activate(ws, loaded, key);
+}
+function activate(ws, loaded, key){
   activeWs = ws; SKIP_SAVE = false;
   try{ localStorage.setItem(WS_ACTIVE_KEY, key); }catch(e){}
-  let loaded=null;
-  try{ const raw=localStorage.getItem(wsDataKey(key)); if(raw) loaded=JSON.parse(raw); }catch(e){}
   if (loaded && loaded.state){ state = Object.assign(TL.baseState(), loaded.state); UID = loaded.UID || UID; }
   else state = ws.seed==='sample' ? TL.seedState() : TL.baseState();
   if (TLC.user()) cloudAdopt(ws, loaded);
@@ -1338,6 +1395,60 @@ function deleteWorkspace(key){
   showLauncher();
 }
 
+/* ---- workspace passphrase (at-rest encryption) ---- */
+function lockState(){ return wsPassphrase() ? 'locked' : 'unlocked'; }
+function lockWorkspace(){
+  if(!activeWs) return;
+  const pass = wsPassphrase();
+  const curLocked = !!pass;
+  openModal(`<div class="mhead"><h3>${curLocked?'Change passphrase':'Lock this business'}</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="mbody">
+    <div class="note">Set a passphrase to <b>encrypt this workspace at rest</b> (AES-256). Anyone opening this business must enter it — data is unreadable without it. It's stored only in this browser session. ${curLocked?'Change it to re-encrypt with a new passphrase.':''}</div>
+    ${curLocked?'<label class="fld"><span>Current passphrase</span><input id="pk_old" type="password" autocomplete="off"></label>':''}
+    <label class="fld"><span>New passphrase</span><input id="pk_new" type="password" autocomplete="new-password" minlength="8"></label>
+    <label class="fld"><span>Confirm passphrase</span><input id="pk_confirm" type="password" autocomplete="new-password"></label>
+  </div>
+  <div class="mfoot"><button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveLock()">${curLocked?'Re-encrypt':'Lock workspace'}</button></div>`);
+}
+async function saveLock(){
+  const n=document.getElementById('pk_new').value, c=document.getElementById('pk_confirm').value;
+  const old=document.getElementById('pk_old')?.value||'';
+  const cur = wsPassphrase();
+  if(cur && old!==cur){ toast('Current passphrase is incorrect'); return; }
+  if(n.length<8){ toast('Passphrase must be at least 8 characters'); return; }
+  if(n!==c){ toast('Passphrases do not match'); return; }
+  setWsPassphrase(n);
+  closeModal(); toast('Workspace locked & encrypted 🔒');
+  persist();
+}
+function unlockWorkspace(){
+  if(!activeWs) return;
+  const key = activeWs.key;
+  unlockPrompt(key);
+}
+function unlockPrompt(key){
+  openModal(`<div class="mhead"><h3>Unlock business</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="mbody"><div class="note">This workspace is encrypted at rest. Enter its passphrase to open it.</div>
+    <label class="fld"><span>Passphrase</span><input id="uk_pw" type="password" autocomplete="off"></label>
+    <div class="tiny" style="margin-top:10px"><a href="#" onclick="event.preventDefault();closeModal();showLauncher()">← Back to business list</a></div>
+  </div>
+  <div class="mfoot"><button class="btn sec" onclick="closeModal();showLauncher()">Cancel</button><button class="btn" onclick="doUnlock('${key}')">Unlock</button></div>`);
+}
+async function doUnlock(key){
+  const pw=document.getElementById('uk_pw').value;
+  try{
+    const raw=localStorage.getItem(wsDataKey(key));
+    if(!raw || !raw.startsWith(ENCRYPT_MARKER)) throw new Error('not encrypted');
+    const loaded=JSON.parse(await TL.decryptWorkspace(pw, raw.slice(ENCRYPT_MARKER.length)));
+    setWsPassphrase(pw);
+    const ws=getWorkspaces().find(w=>w.key===key);
+    if(ws){ closeModal(); activate(ws, loaded, key); toast('Unlocked 🔓'); }
+  }catch(e){ toast('Wrong passphrase'); }
+}
+function unlockAfter(){ if(lockState()==='locked') toast('This business is locked — set the passphrase in “Lock workspace”.'); }
+
+
+
 /* ---- cloud sync glue ---- */
 async function cloudAdopt(ws, localLoaded){
   try{
@@ -1346,7 +1457,7 @@ async function cloudAdopt(ws, localLoaded){
     if (cloud && cloud.data && cloud.data.state && (!localAt || cloud.updated_at > localAt)){
       if (activeWs && activeWs.key===ws.key){
         state = Object.assign(TL.baseState(), cloud.data.state); UID = cloud.data.UID || UID;
-        try{ localStorage.setItem(wsDataKey(ws.key), JSON.stringify({...cloud.data, savedAt:cloud.updated_at})); }catch(e){}
+        persist(); // passphrase-aware save — never writes plaintext over an encrypted blob
         go(current||'dashboard'); toast('☁ Loaded latest from cloud');
       }
     } else if (!cloud) TLC.push(ws, {UID, state});

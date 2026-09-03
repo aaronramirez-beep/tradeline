@@ -104,6 +104,26 @@ test.describe('TradeLine CRM', () => {
     await expect(page.locator('text=$').first()).toBeVisible();
   });
 
+  test('workspace lock encrypts at rest and unlock restores the data', async ({ page }) => {
+    await bootDemo(page);
+    await page.click('.side .foot a:has-text("Lock")');
+    await page.fill('#pk_new', 'demo-passphrase-1');
+    await page.fill('#pk_confirm', 'demo-passphrase-1');
+    await page.click('button:has-text("Lock workspace")');
+    // persisted blob becomes ciphertext
+    await page.waitForFunction(() =>
+      Object.keys(localStorage).some(k => k.startsWith('arkhub-ws-') && localStorage.getItem(k).startsWith('enc:v1:')));
+    // fresh session (passphrase lives in sessionStorage) → unlock prompt on boot
+    await page.evaluate(() => sessionStorage.clear());
+    await page.reload();
+    await expect(page.locator('text=Unlock business')).toBeVisible();
+    await page.fill('#uk_pw', 'demo-passphrase-1');
+    await page.click('button:has-text("Unlock")');
+    await expect(page.locator('#pageTitle')).toHaveText('Dashboard');
+    await page.click('[data-view="schedule"]');
+    await expect(page.locator('table tbody tr.click:has-text("Level 5 finish")')).toBeVisible();
+  });
+
   test('sidebar links back to landing page', async ({ page }) => {
     await bootDemo(page);
     const homeLink = page.locator('.side .foot a:has-text("Tradeline home")');

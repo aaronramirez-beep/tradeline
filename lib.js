@@ -192,12 +192,100 @@ let state = null;
 function getState() { return state; }
 function setState(s) { state = s; }
 
+/* ============================ AT-REST ENCRYPTION ============================
+   WebCrypto PBKDF2 → AES-GCM.  Encrypts the workspace JSON blob before it
+   touches localStorage.  Passphrase never leaves the browser.
+
+   Guarded: jsdom (tests) and old browsers without crypto.subtle get stubs
+   that throw — callers must try/catch. ===================================== */
+
+const _crypto = () => globalThis.crypto?.subtle;
+
+const _ab2b64 = buf => {
+  const bytes = new Uint8Array(buf);
+  let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+};
+const _b642ab = b64 => {
+  const s = atob(b64); const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return bytes.buffer;
+};
+
+const _deriveKey = async (passphrase, salt) => {
+  const c = _crypto(); if (!c) throw new Error('WebCrypto unavailable');
+  const enc = new TextEncoder();
+  const base = await c.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return c.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+};
+
+async function encryptWorkspace(passphrase, plaintext) {
+  const c = _crypto(); if (!c) throw new Error('WebCrypto unavailable');
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await _deriveKey(passphrase, salt);
+  const ct   = await c.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+  // Format: base64(salt || iv || ciphertext)
+  return _ab2b64(new Uint8Array([...salt, ...iv, ...new Uint8Array(ct)]).buffer);
+}
+
+async function decryptWorkspace(passphrase, b64) {
+  const c = _crypto(); if (!c) throw new Error('WebCrypto unavailable');
+  const raw = new Uint8Array(_b642ab(b64));
+  const salt = raw.slice(0, 16);
+  const iv   = raw.slice(16, 28);
+  const ct   = raw.slice(28);
+  const key  = await _deriveKey(passphrase, salt);
+  const plain = await c.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return new TextDecoder().decode(plain);
+}
+
+/* ============================ INPUT VALIDATION ============================ */
+
+const _ALLOWED_IMG = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB (before shrink)
+
+function validatePhoto(file) {
+  if (!_ALLOWED_IMG.has(file.type)) {
+    return { ok: false, msg: 'Use JPEG, PNG, or WebP only.' };
+  }
+  if (file.size > PHOTO_MAX_BYTES) {
+    return { ok: false, msg: 'Photo must be under 10 MB.' };
+  }
+  return { ok: true };
+}
+
+function validateField(value, opts = {}) {
+  const v = (value ?? '').toString().trim();
+  if (opts.required && !v) return { ok: false, msg: opts.requiredMsg || 'This field is required.' };
+  if (opts.minLength && v.length < opts.minLength) return { ok: false, msg: `At least ${opts.minLength} characters.` };
+  if (opts.maxLength && v.length > opts.maxLength) return { ok: false, msg: `At most ${opts.maxLength} characters.` };
+  if (opts.pattern && v && !opts.pattern.test(v)) return { ok: false, msg: opts.patternMsg || 'Invalid format.' };
+  if (opts.min !== undefined && v && +v < opts.min) return { ok: false, msg: `Must be at least ${opts.min}.` };
+  if (opts.max !== undefined && v && +v > opts.max) return { ok: false, msg: `Must be at most ${opts.max}.` };
+  return { ok: true };
+}
+
+const PHONE_RE = /^[\d\s()+\-]{7,20}$/;
+const EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 window.TL = {
   uid, money, iso, today, daysFromNow, dfmt, shortDate, esc,
   MONTHS, PLANS, RANK, ADDONS, FEAT, has,
   client, quoteTotal, invTotal, invPaid, invBalance, jobLabor, jobExp, jobCOs, coApprovedTotal,
   jobPhotos, photoDB, shrinkImage,
   pill, statusPill, baseState, seedState,
+  // Encryption
+  encryptWorkspace, decryptWorkspace,
+  // Validation
+  validatePhoto, validateField, PHONE_RE, EMAIL_RE, PHOTO_MAX_BYTES,
   get state() { return state; },
   set state(s) { state = s; },
 };
